@@ -23,12 +23,14 @@ namespace MxFramework.Gameplay
             string moduleId = DefaultModuleId,
             RuntimeTickStage tickStage = RuntimeTickStage.Simulation,
             int priority = 100,
-            int abilityResultCapacity = DefaultAbilityResultCapacity)
+            int abilityResultCapacity = DefaultAbilityResultCapacity,
+            GameplaySystemPipeline systemPipeline = null)
             : base(moduleId, tickStage, priority)
         {
             World = world ?? throw new ArgumentNullException(nameof(world));
             AbilityRegistry = abilityRegistry ?? throw new ArgumentNullException(nameof(abilityRegistry));
             CommandBuffer = commandBuffer ?? throw new ArgumentNullException(nameof(commandBuffer));
+            SystemPipeline = systemPipeline;
             TickWorldAutomatically = tickWorldAutomatically;
             _abilityResults = new RingBuffer<GameplayAbilityRuntimeResult>(abilityResultCapacity);
         }
@@ -36,6 +38,7 @@ namespace MxFramework.Gameplay
         public GameplayWorld World { get; }
         public GameplayAbilityRegistry AbilityRegistry { get; }
         public RuntimeCommandBuffer CommandBuffer { get; }
+        public GameplaySystemPipeline SystemPipeline { get; }
         public bool TickWorldAutomatically { get; }
         public int AbilityResultCapacity => _abilityResults.Capacity;
         public RuntimeEventQueue<GameplayRuntimeEvent> Events => _events;
@@ -44,7 +47,7 @@ namespace MxFramework.Gameplay
         public override void Tick(RuntimeTickContext context)
         {
             RuntimeFrame frame = new RuntimeFrame(context.FrameIndex);
-            DrainCommands(frame);
+            DrainCommands(frame, context);
 
             if (TickWorldAutomatically)
             {
@@ -85,7 +88,7 @@ namespace MxFramework.Gameplay
             _abilityResultsView.Clear();
         }
 
-        private void DrainCommands(RuntimeFrame frame)
+        private void DrainCommands(RuntimeFrame frame, RuntimeTickContext tickContext)
         {
             _drainedCommands.Clear();
             IReadOnlyList<RuntimeCommand> commands = CommandBuffer.DrainForFrame(frame);
@@ -99,7 +102,23 @@ namespace MxFramework.Gameplay
                 ExecuteCommand(frame, _drainedCommands[i]);
             }
 
+            RunSystemPipeline(frame, tickContext);
             _drainedCommands.Clear();
+        }
+
+        private void RunSystemPipeline(RuntimeFrame frame, RuntimeTickContext tickContext)
+        {
+            if (SystemPipeline == null)
+                return;
+
+            var context = new GameplaySystemContext(
+                frame,
+                tickContext.DeltaTime,
+                tickContext.ElapsedTime,
+                World,
+                _drainedCommands,
+                _events);
+            SystemPipeline.Tick(context);
         }
 
         private void ExecuteCommand(RuntimeFrame frame, RuntimeCommand command)

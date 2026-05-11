@@ -38,6 +38,10 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayEntityLifecycle` | 创建/销毁 generation entity id，并防止 stale id 命中新实体 |
 | `IGameplayComponent` | 纯 gameplay component marker |
 | `GameplayComponentStore<T>` / `GameplayComponentSnapshot<T>` | 只接受 `GameplayEntityId` 的稳定 component store 和 snapshot entry |
+| `IGameplaySystem` | Gameplay ECS-style system 契约，按 phase / priority 执行 |
+| `GameplaySystemPhase` | PreCommand / Command / Simulation / Resolution / Diagnostics |
+| `GameplaySystemContext` | System tick 上下文，包含 frame、delta、world、已 drain commands 和 event queue |
+| `GameplaySystemPipeline` | 稳定 system 调度管线，不拥有 `RuntimeCommandBuffer` drain 权限 |
 | `ITargetSelector` | 从候选目标中选择技能目标 |
 | `GameplayTargetCandidate` | 可目标选择的实体快照，包含 entity/team/alive/tag/status |
 | `GameplayTargetQuery` | 通用目标查询：caster、alive、team relation、required tags、blocked statuses、max targets |
@@ -159,9 +163,20 @@ Component store v0：
 - `GameplayEntityId` 是 `Index + Generation` 组成的值类型，`default` 为 invalid。
 - `GameplayEntityLifecycle.Create()` 分配 generation id；`Destroy(id)` 推进 generation，旧 id 失效。
 - `GameplayEntityLifecycle.CreateSnapshot()` 按 entity index 稳定输出 alive ids。
+- `GameplayEntityLifecycle` 只负责 id 生命周期，不负责 component cleanup；后续 World / ComponentRegistry / EntityLifecycleSystem 必须在 destroy entity 时统一清理 registered stores。
 - `GameplayComponentStore<T>` 约束 `T : struct, IGameplayComponent`，组件是纯数据。
 - Store 只接受 `GameplayEntityId`，没有裸 int key API。
+- `GameplayComponentStore<T>.Set` 是 upsert：component 不存在时新增，存在时覆盖。
 - Store snapshot / copy 按 `GameplayEntityId` 稳定排序，供 Diagnostics、Hash、SaveState 后续接入。
+
+System pipeline v0：
+
+- `GameplaySystemPipeline` 按 `GameplaySystemPhase`、`Priority`、注册顺序稳定执行 systems。
+- Disabled system 会被跳过，但保留在 pipeline snapshot 中。
+- `GameplaySystemContext.Commands` 是 `GameplayRuntimeModule` 已 drain 的只读命令列表；system 不拿 `RuntimeCommandBuffer`，也不能调用 `DrainForFrame`。
+- `GameplaySystemContext.Events` 是 module 的 `RuntimeEventQueue<GameplayRuntimeEvent>`，system 可以 enqueue frame event，但 Gameplay 内部不强制 flush。
+- `GameplayRuntimeModule` 可选接入 pipeline。v0 执行顺序是 drain command、执行现有 built-in command handlers、运行 pipeline、可选 world tick。
+- System 抛异常时，pipeline 用 `GameplaySystemPipelineException` 包装 system id 和 phase 后重新抛出。
 
 Hash / diagnostics：
 
@@ -266,6 +281,7 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - GameplayRuntimeEvent：按帧 drain 的 Gameplay runtime event queue。
 - Command-driven Gameplay ECS-style 设计契约：组件化状态、系统化逻辑、generation entity id、v0 API bridge 和 source of truth 规则。
 - Gameplay ECS-style component store v0：generation entity id、entity lifecycle、component marker 和稳定 store snapshot。
+- Gameplay ECS-style system pipeline v0：phase/context/pipeline、稳定顺序、disabled skip、module 单点 drain command。
 - Ability Runtime Graph v0：图契约、确定性执行、phase timeline、diagnostics、hash。
 - 自身目标和单敌方目标选择。
 - 直接伤害效果。

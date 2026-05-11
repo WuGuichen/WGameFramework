@@ -38,7 +38,8 @@ Command-driven Gameplay ECS-style Runtime
 8. Component 不引用 `UnityEngine`、`UnityEditor`、Demo、UI、Combat 实现层或 WGame 私有数据。
 9. System 不直接 drain `RuntimeCommandBuffer`。
 10. EventQueue 不由 Gameplay 内部强制 flush，外部观察者按 frame drain。
-11. 新增 component / system / command handler 必须补测试和接口/任务文档。
+11. Entity destroy 必须由 World / ComponentRegistry / EntityLifecycleSystem 统一清理 registered component stores；单独的 `GameplayEntityLifecycle` 不负责 component cleanup。
+12. 新增 component / system / command handler 必须补测试和接口/任务文档。
 
 ## Source of Truth
 

@@ -60,7 +60,9 @@ public sealed class GameplayComponentStore<T>
 
 - `GameplayEntityId` 使用 `Index + Generation`，`default` 表示 invalid。
 - `GameplayEntityLifecycle.Destroy` 会推进 generation，旧 handle 不会命中新实体。
+- `GameplayEntityLifecycle` 只负责 id 生命周期，不负责 component cleanup。
 - `GameplayComponentStore<T>` 只接受 `GameplayEntityId`，没有裸 int key API。
+- `GameplayComponentStore<T>.Set` 是 upsert：component 不存在时新增，存在时覆盖。
 - Component 第一版约束为 `struct, IGameplayComponent`，避免组件对象携带行为和引用生命周期。
 - Snapshot / CopyTo 按 `GameplayEntityId.Index`、`Generation` 稳定排序。
 - 本批次不迁移 `RuntimeEntity` 状态，不建立双写 source of truth。
@@ -85,3 +87,9 @@ public sealed class GameplayComponentStore<T>
 - `GameplaySystemContext`
 - `GameplaySystemPipeline`
 - RuntimeCommandBuffer 仍由 `GameplayRuntimeModule` 单点 drain
+- World / ComponentRegistry 在 destroy entity 时统一移除所有 registered component store 中该 entity 的组件
+
+下一批或 v0 API bridge 批次需要补测试：
+
+- `DestroyEntity_RemovesComponentsFromRegisteredStores`
+- `DestroyedEntity_DoesNotAppearInWorldComponentSnapshot`
