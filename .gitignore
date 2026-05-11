@@ -19,6 +19,7 @@ Assets/Art/
 Assets/Config/
 Assets/UI/**
 !Assets/UI/
+!Assets/UI/**/
 !Assets/UI/**/*.uxml
 !Assets/UI/**/*.uxml.meta
 !Assets/UI/**/*.uss
