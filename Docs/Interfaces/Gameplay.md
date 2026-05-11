@@ -6,6 +6,8 @@
 
 Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选择、效果执行和技能事件。它把 Demo 中验证过的 Entity -> Ability -> Target -> Effect -> Attributes -> Buff -> Events 闭环提升为框架 API。
 
+下一阶段 Gameplay 的架构方向是 `Command-driven Gameplay ECS-style Runtime`：使用组件化状态、系统化逻辑、`RuntimeCommandBuffer` 权威输入、`RuntimeHost` 明确调度和 `RuntimeEventQueue` 输出结果。完整 ECS 引擎不是当前交付目标；底层存储和查询形态可以随着真实 Gameplay 需求演进到 SparseSet / Archetype / Chunk。
+
 ## 为什么不依赖 Unity
 
 `MxFramework.Gameplay` 是 `noEngineReferences=true` 的纯 C# 程序集，不引用 `UnityEngine` 或 `UnityEditor`。时间、输入、动画、碰撞、GameObject 绑定和场景生命周期都由外层 Unity Demo 或项目层负责传入和编排，因此同一套 Gameplay API 可以被 Unity、EditMode 测试、CLI 工具、预览服务和 Mod 数据验证共同使用。
@@ -136,6 +138,15 @@ Runtime module / command loop：
 - Module 将结果写入 `RuntimeEventQueue<GameplayRuntimeEvent>`，事件包含 frame、command、caster、ability、target、failure code、reason 和 traceId。UI / Audio / Diagnostics 应消费事件队列，而不是直接监听内部私有状态。
 - `GameplayRuntimeModule.AbilityResults` 只保留最近 N 条 ability cast 诊断结果，默认容量为 `DefaultAbilityResultCapacity`。需要长期日志时应 drain runtime event 或由外部诊断系统接管，不要把该列表当完整历史。
 
+ECS-style 迁移契约：
+
+- Entity 只表达身份和生命周期；业务状态逐步进入 component store。
+- Component 是纯 gameplay 状态，不引用 Unity、Combat、UI、Demo 或 WGame 私有数据。
+- System 处理 command 或组件状态，不直接 drain `RuntimeCommandBuffer`。
+- 同一类状态只能有一个 source of truth。迁移阶段允许 adapter / facade，但禁止 `RuntimeEntity` 和 component store 双写同一状态。
+- `GameplayRuntimeModule` 后续只保留调度职责：drain command、构造 system context、运行 pipeline、暴露 event queue。
+- 详细设计契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_00_DESIGN_CONTRACT.md`。
+
 Hash / diagnostics：
 
 - `GameplayHashContributor` 实现 `IRuntimeHashContributor`，可接 entity list 或 `GameplayWorld`。
@@ -237,6 +248,7 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - GameplayAbilityRuntimeService 世界级 Ability cast adapter。
 - GameplayRuntimeModule：RuntimeHost / RuntimeCommandBuffer 驱动的 Gameplay command loop。
 - GameplayRuntimeEvent：按帧 drain 的 Gameplay runtime event queue。
+- Command-driven Gameplay ECS-style 设计契约：组件化状态、系统化逻辑、source of truth 和 RuntimeEntity 迁移规则。
 - Ability Runtime Graph v0：图契约、确定性执行、phase timeline、diagnostics、hash。
 - 自身目标和单敌方目标选择。
 - 直接伤害效果。
