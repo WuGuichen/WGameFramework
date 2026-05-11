@@ -6,7 +6,7 @@
 
 Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选择、效果执行和技能事件。它把 Demo 中验证过的 Entity -> Ability -> Target -> Effect -> Attributes -> Buff -> Events 闭环提升为框架 API。
 
-下一阶段 Gameplay 的架构方向是 `Command-driven Gameplay ECS-style Runtime`：使用组件化状态、系统化逻辑、`RuntimeCommandBuffer` 权威输入、`RuntimeHost` 明确调度和 `RuntimeEventQueue` 输出结果。完整 ECS 引擎不是当前交付目标；底层存储和查询形态可以随着真实 Gameplay 需求演进到 SparseSet / Archetype / Chunk。
+下一阶段 Gameplay 的架构方向是 `Command-driven Gameplay ECS-style Runtime`：使用组件化状态、系统化逻辑、`RuntimeCommandBuffer` 权威输入、`RuntimeHost` 明确调度和 `RuntimeEventQueue` 输出结果。当前无旧数据兼容目标；`RuntimeEntity` / `GameplayWorld` 是 v0 API bridge，不是新架构的长期 source of truth。新 component store 直接使用 generation id，不支持裸 int entity id 作为 key。底层存储和查询形态可以随着真实 Gameplay 需求演进到 SparseSet / Archetype / Chunk。
 
 ## 为什么不依赖 Unity
 
@@ -34,6 +34,10 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayRuntimeModule` | `RuntimeHost` 模块入口，drain `RuntimeCommandBuffer`、执行 Gameplay command、tick world 并输出 frame event |
 | `GameplayRuntimeCommandIds` / `GameplayRuntimeCommandFactory` | Gameplay command id 和 `RuntimeCommand` 构造工具 |
 | `GameplayRuntimeEvent` / `GameplayRuntimeEventType` | Gameplay 按帧事件 DTO，用于 UI、Audio、Diagnostics 和 Replay 边界 |
+| `GameplayEntityId` | 新 ECS-style component runtime 的 generation entity id |
+| `GameplayEntityLifecycle` | 创建/销毁 generation entity id，并防止 stale id 命中新实体 |
+| `IGameplayComponent` | 纯 gameplay component marker |
+| `GameplayComponentStore<T>` / `GameplayComponentSnapshot<T>` | 只接受 `GameplayEntityId` 的稳定 component store 和 snapshot entry |
 | `ITargetSelector` | 从候选目标中选择技能目标 |
 | `GameplayTargetCandidate` | 可目标选择的实体快照，包含 entity/team/alive/tag/status |
 | `GameplayTargetQuery` | 通用目标查询：caster、alive、team relation、required tags、blocked statuses、max targets |
@@ -138,14 +142,26 @@ Runtime module / command loop：
 - Module 将结果写入 `RuntimeEventQueue<GameplayRuntimeEvent>`，事件包含 frame、command、caster、ability、target、failure code、reason 和 traceId。UI / Audio / Diagnostics 应消费事件队列，而不是直接监听内部私有状态。
 - `GameplayRuntimeModule.AbilityResults` 只保留最近 N 条 ability cast 诊断结果，默认容量为 `DefaultAbilityResultCapacity`。需要长期日志时应 drain runtime event 或由外部诊断系统接管，不要把该列表当完整历史。
 
-ECS-style 迁移契约：
+ECS-style 设计契约：
 
-- Entity 只表达身份和生命周期；业务状态逐步进入 component store。
+- Entity 只表达身份和生命周期；新架构直接使用 `GameplayEntityId` generation id。
+- 新 component store 不支持裸 int entity id 作为 key。
 - Component 是纯 gameplay 状态，不引用 Unity、Combat、UI、Demo 或 WGame 私有数据。
 - System 处理 command 或组件状态，不直接 drain `RuntimeCommandBuffer`。
-- 同一类状态只能有一个 source of truth。迁移阶段允许 adapter / facade，但禁止 `RuntimeEntity` 和 component store 双写同一状态。
+- 当前无旧数据兼容目标；`RuntimeEntity` 是 v0 API bridge，不是新架构 source of truth。
+- 同一类状态只能有一个 source of truth。bridge 阶段允许 facade，但禁止 `RuntimeEntity` 和 component store 双写同一状态。
 - `GameplayRuntimeModule` 后续只保留调度职责：drain command、构造 system context、运行 pipeline、暴露 event queue。
+- EventQueue 不由 Gameplay 内部强制 flush，UI / Audio / Diagnostics 等外部观察者按 frame drain。
 - 详细设计契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_00_DESIGN_CONTRACT.md`。
+
+Component store v0：
+
+- `GameplayEntityId` 是 `Index + Generation` 组成的值类型，`default` 为 invalid。
+- `GameplayEntityLifecycle.Create()` 分配 generation id；`Destroy(id)` 推进 generation，旧 id 失效。
+- `GameplayEntityLifecycle.CreateSnapshot()` 按 entity index 稳定输出 alive ids。
+- `GameplayComponentStore<T>` 约束 `T : struct, IGameplayComponent`，组件是纯数据。
+- Store 只接受 `GameplayEntityId`，没有裸 int key API。
+- Store snapshot / copy 按 `GameplayEntityId` 稳定排序，供 Diagnostics、Hash、SaveState 后续接入。
 
 Hash / diagnostics：
 
@@ -248,7 +264,8 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - GameplayAbilityRuntimeService 世界级 Ability cast adapter。
 - GameplayRuntimeModule：RuntimeHost / RuntimeCommandBuffer 驱动的 Gameplay command loop。
 - GameplayRuntimeEvent：按帧 drain 的 Gameplay runtime event queue。
-- Command-driven Gameplay ECS-style 设计契约：组件化状态、系统化逻辑、source of truth 和 RuntimeEntity 迁移规则。
+- Command-driven Gameplay ECS-style 设计契约：组件化状态、系统化逻辑、generation entity id、v0 API bridge 和 source of truth 规则。
+- Gameplay ECS-style component store v0：generation entity id、entity lifecycle、component marker 和稳定 store snapshot。
 - Ability Runtime Graph v0：图契约、确定性执行、phase timeline、diagnostics、hash。
 - 自身目标和单敌方目标选择。
 - 直接伤害效果。

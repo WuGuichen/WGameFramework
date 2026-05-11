@@ -96,7 +96,8 @@
 | `Tasks/APP_SCENE_FLOW_01_FOUNDATION.md` | App / Scene Flow Foundation：新增 App 状态流转、SceneFlow 串行加载、Unity SceneManager 适配和 RuntimeHost 模块入口。 |
 | `Tasks/PHASE11_RUNTIME_GAMEPLAY_GOAL.md` | Runtime Gameplay Foundation 已 Accepted / Closed；M1-M5 公共 API、配置驱动、诊断快照、配置变更和 Ability authoring contract 已收口。 |
 | `Tasks/GAMEPLAY_FOUNDATION_02_RUNTIME_LOOP_AND_COMMANDS.md` | Gameplay Foundation 02：新增 `GameplayRuntimeModule`，将 Gameplay 接入 RuntimeHost / RuntimeCommandBuffer / RuntimeEventQueue 主线。 |
-| `Tasks/GAMEPLAY_ECS_STYLE_00_DESIGN_CONTRACT.md` | Gameplay ECS-style 00：定义轻量组件化状态、系统化逻辑、source of truth、RuntimeEntity 迁移和 command/system/event 边界。 |
+| `Tasks/GAMEPLAY_ECS_STYLE_00_DESIGN_CONTRACT.md` | Gameplay ECS-style 00：定义组件化状态、系统化逻辑、generation entity id、v0 API bridge、source of truth 和 command/system/event 边界。 |
+| `Tasks/GAMEPLAY_ECS_STYLE_01_COMPONENT_STORE.md` | Gameplay ECS-style 01：新增 generation entity id、entity lifecycle、component marker 和稳定 component store。 |
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |
 | `Tasks/RUNTIME_FOUNDATION_02_FRAME_COMMAND_REPLAY.md` | Runtime Foundation P0-2：规划 Frame Clock、Command Buffer、Replay record/playback 和 result hash。 |
 | `Tasks/RUNTIME_FOUNDATION_03_SAVE_STATE_SERIALIZATION.md` | Runtime Foundation P0-3：规划 SaveState 契约、版本迁移、Gameplay slice 保存恢复和结构化错误。 |
