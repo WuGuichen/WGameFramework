@@ -89,6 +89,7 @@ public interface IRuntimeTimerScheduler
 
 - `delayFrames == 0` 表示下次 scheduler tick 可触发，不在 `Schedule*` 调用栈内同步触发。
 - 负数 delay / interval 必须返回结构化错误或抛出明确参数异常，不能静默修正。
+- repeating frame timer 的 `intervalFrames` 必须大于 0，避免无意义的零间隔重复调度。
 - seconds delay 和 tick delta 必须是 finite 且非负，拒绝 NaN / Infinity / negative。
 - 同一目标帧内按 `targetFrame`、`sequence`、`timerId` 稳定排序。
 - cancel 已触发或不存在的 handle 返回 `false`。

@@ -227,6 +227,7 @@ namespace MxFramework.Tests.Runtime
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleSeconds(-0.1d, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleSeconds(double.NaN, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleSeconds(double.PositiveInfinity, _ => { }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleRepeatingFrames(0, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleRepeatingFrames(-1, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleCommand(-1, buffer, new RuntimeCommand(RuntimeFrame.Zero, 1, 1, 1)));
         }

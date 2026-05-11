@@ -81,9 +81,9 @@ namespace MxFramework.Runtime
 
         public RuntimeTimerHandle ScheduleRepeatingFrames(long intervalFrames, RuntimeTimerCallback callback, string traceId = "")
         {
-            if (intervalFrames < 0L)
+            if (intervalFrames <= 0L)
             {
-                throw new ArgumentOutOfRangeException(nameof(intervalFrames), "Runtime repeating timer frame interval cannot be negative.");
+                throw new ArgumentOutOfRangeException(nameof(intervalFrames), "Runtime repeating timer frame interval must be greater than zero.");
             }
 
             if (callback == null)

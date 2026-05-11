@@ -13,15 +13,50 @@ namespace MxFramework.Combat.Editor
 {
     internal static class UiColors
     {
+        // Surface & Layout
         public static readonly Color Surface = new Color(0.18f, 0.18f, 0.18f);
         public static readonly Color SurfaceAlt = new Color(0.16f, 0.16f, 0.16f);
+        public static readonly Color SurfaceDeep = new Color(0.12f, 0.12f, 0.12f);
         public static readonly Color Border = new Color(0.26f, 0.26f, 0.26f);
+
+        // Text
         public static readonly Color TextPrimary = new Color(0.88f, 0.88f, 0.88f);
         public static readonly Color TextSecondary = new Color(0.62f, 0.62f, 0.62f);
+        public static readonly Color TextMuted = new Color(0.42f, 0.42f, 0.42f);
+
+        // Semantic
         public static readonly Color TimelineActive = new Color(0.82f, 0.3f, 0.24f);
         public static readonly Color SuccessGreen = new Color(0.2f, 0.55f, 0.25f);
         public static readonly Color WarnAmber = new Color(0.85f, 0.55f, 0.1f);
         public static readonly Color ErrorRed = new Color(0.8f, 0.25f, 0.2f);
+
+        // Timeline Strip
+        public static readonly Color TimelineHeaderBg = new Color(0.12f, 0.12f, 0.12f);
+        public static readonly Color TimelineHeaderText = new Color(0.82f, 0.82f, 0.82f);
+        public static readonly Color TimelineLaneEven = new Color(0.105f, 0.105f, 0.105f);
+        public static readonly Color TimelineLaneOdd = new Color(0.13f, 0.13f, 0.13f);
+        public static readonly Color TimelineLabelBg = new Color(0.15f, 0.15f, 0.15f);
+        public static readonly Color TimelineEmptyLaneText = new Color(0.55f, 0.55f, 0.55f);
+        public static readonly Color TimelineGridLine = new Color(0.2f, 0.2f, 0.2f, 0.35f);
+        public static readonly Color TimelineTickLine = new Color(0.42f, 0.42f, 0.42f);
+        public static readonly Color TimelineTickLabel = new Color(0.74f, 0.74f, 0.74f);
+        public static readonly Color TimelinePlayhead = new Color(1f, 0.92f, 0.35f);
+        public static readonly Color TimelineScrollBorder = new Color(0.18f, 0.18f, 0.18f);
+
+        // Timeline Bar Colors (semantic)
+        public static readonly Color BarStartup = new Color(0.36f, 0.52f, 0.88f);
+        public static readonly Color BarActive = new Color(0.82f, 0.3f, 0.24f);
+        public static readonly Color BarRecovery = new Color(0.34f, 0.62f, 0.36f);
+        public static readonly Color BarHitbox = new Color(0.92f, 0.36f, 0.24f);
+        public static readonly Color BarHurtbox = new Color(0.22f, 0.62f, 0.86f);
+        public static readonly Color BarTrace = new Color(0.86f, 0.58f, 0.18f);
+
+        // Handle / Selection
+        public static readonly Color HandleDefault = new Color(1f, 1f, 1f, 0.7f);
+        public static readonly Color SelectionBorder = Color.white;
+
+        // Interactive States
+        public static readonly Color ButtonHover = new Color(0.24f, 0.24f, 0.24f);
     }
 
     internal enum CombatAuthoringWindowMode
@@ -43,7 +78,7 @@ namespace MxFramework.Combat.Editor
         private const float TimelineStripMinTrackWidth = 360f;
         private const float TimelineStripMinHeight = 280f;
         private const float TimelineRangeEdgeHandleWidth = 12f;
-        private const float TimelineDetailsHeight = 104f;
+        private const float TimelineDetailsHeight = 72f;
         private const float IssueRowHeight = 116f;
         private const float ValidationReportHeight = 340f;
         private const float SidePanelWidth = 220f;
@@ -572,12 +607,14 @@ namespace MxFramework.Combat.Editor
             body.style.flexDirection = FlexDirection.Column;
             body.style.flexGrow = 1;
             body.style.minHeight = 0;
+            body.style.minWidth = 0;
 
             var center = CreatePanel("\u23F1 Timeline");
             center.style.flexGrow = 1;
             center.style.flexShrink = 1;
             center.style.minWidth = 0;
             center.style.minHeight = 0;
+            center.style.overflow = Overflow.Hidden;
             center.Add(CreateFrameScrubber());
             center.Add(CreateTimelineStripView());
             center.Add(SectionTitle("详细信息"));
@@ -639,7 +676,7 @@ namespace MxFramework.Combat.Editor
             var root = new VisualElement();
             root.style.flexGrow = 1;
             root.style.flexShrink = 1;
-            root.style.minHeight = TimelineStripMinHeight;
+            root.style.minHeight = 100;
             root.style.marginBottom = 8;
 
             _timelineStripEmptyRoot = new HelpBox("请选择 Action Asset 后查看横向时间轴。", HelpBoxMessageType.Info);
@@ -657,10 +694,10 @@ namespace MxFramework.Combat.Editor
             _timelineStripScroll = new ScrollView(ScrollViewMode.VerticalAndHorizontal);
             _timelineStripScroll.style.flexGrow = 1;
             _timelineStripScroll.style.minHeight = 0;
-            _timelineStripScroll.style.borderBottomColor = new Color(0.18f, 0.18f, 0.18f);
-            _timelineStripScroll.style.borderLeftColor = new Color(0.18f, 0.18f, 0.18f);
-            _timelineStripScroll.style.borderRightColor = new Color(0.18f, 0.18f, 0.18f);
-            _timelineStripScroll.style.borderTopColor = new Color(0.18f, 0.18f, 0.18f);
+            _timelineStripScroll.style.borderBottomColor = UiColors.TimelineScrollBorder;
+            _timelineStripScroll.style.borderLeftColor = UiColors.TimelineScrollBorder;
+            _timelineStripScroll.style.borderRightColor = UiColors.TimelineScrollBorder;
+            _timelineStripScroll.style.borderTopColor = UiColors.TimelineScrollBorder;
             _timelineStripScroll.style.borderBottomWidth = 1;
             _timelineStripScroll.style.borderLeftWidth = 1;
             _timelineStripScroll.style.borderRightWidth = 1;
@@ -1335,18 +1372,18 @@ namespace MxFramework.Combat.Editor
             _timelinePlayhead.style.top = 0;
             _timelinePlayhead.style.width = 2;
             _timelinePlayhead.style.height = contentHeight;
-            _timelinePlayhead.style.backgroundColor = new Color(1f, 0.92f, 0.35f);
+            _timelinePlayhead.style.backgroundColor = UiColors.TimelinePlayhead;
             _timelineStripContent.Add(_timelinePlayhead);
             UpdateTimelinePlayhead();
         }
 
         private void AddTimelineRuler(int totalFrames, float trackWidth)
         {
-            var label = CreateTimelineCell("Frame", 0, 0, TimelineStripLabelWidth, TimelineStripHeaderHeight, new Color(0.16f, 0.16f, 0.16f));
+            var label = CreateTimelineCell("Frame", 0, 0, TimelineStripLabelWidth, TimelineStripHeaderHeight, UiColors.TimelineHeaderBg);
             label.style.unityFontStyleAndWeight = FontStyle.Bold;
             _timelineStripContent.Add(label);
 
-            var track = CreateTimelineBlock(TimelineStripLabelWidth, 0, trackWidth, TimelineStripHeaderHeight, new Color(0.12f, 0.12f, 0.12f));
+            var track = CreateTimelineBlock(TimelineStripLabelWidth, 0, trackWidth, TimelineStripHeaderHeight, UiColors.SurfaceDeep);
             _timelineStripContent.Add(track);
 
             int tickStep = GetTimelineTickStep(totalFrames);
@@ -1364,7 +1401,7 @@ namespace MxFramework.Combat.Editor
         private void AddTimelineTick(int frame, int totalFrames, float trackWidth, bool withLabel)
         {
             float x = TimelineStripLabelWidth + FrameToTimelineX(frame, totalFrames, trackWidth);
-            var tick = CreateTimelineBlock(x, 0, 1, TimelineStripHeaderHeight, new Color(0.42f, 0.42f, 0.42f));
+            var tick = CreateTimelineBlock(x, 0, 1, TimelineStripHeaderHeight, UiColors.TimelineTickLine);
             tick.pickingMode = PickingMode.Ignore;
             _timelineStripContent.Add(tick);
 
@@ -1381,25 +1418,25 @@ namespace MxFramework.Combat.Editor
             label.style.width = 46;
             label.style.height = 18;
             label.style.fontSize = 10;
-            label.style.color = new Color(0.74f, 0.74f, 0.74f);
+            label.style.color = UiColors.TimelineTickLabel;
             _timelineStripContent.Add(label);
         }
 
         private void AddTimelineEmptyLane(float trackWidth)
         {
             float y = TimelineStripHeaderHeight;
-            _timelineStripContent.Add(CreateTimelineCell("Timeline", 0, y, TimelineStripLabelWidth, TimelineStripLaneHeight, new Color(0.15f, 0.15f, 0.15f)));
-            _timelineStripContent.Add(CreateTimelineCell("当前 Action 没有 Timeline 条目。", TimelineStripLabelWidth, y, trackWidth, TimelineStripLaneHeight, new Color(0.1f, 0.1f, 0.1f)));
+            _timelineStripContent.Add(CreateTimelineCell("Timeline", 0, y, TimelineStripLabelWidth, TimelineStripLaneHeight, UiColors.TimelineLabelBg));
+            _timelineStripContent.Add(CreateTimelineCell("当前 Action 没有 Timeline 条目。", TimelineStripLabelWidth, y, trackWidth, TimelineStripLaneHeight, UiColors.SurfaceDeep));
         }
 
         private void AddTimelineLane(int index, int totalFrames, float trackWidth)
         {
             TimelineRow row = _timelineRows[index];
             float y = TimelineStripHeaderHeight + index * TimelineStripLaneHeight;
-            Color laneColor = index % 2 == 0 ? new Color(0.105f, 0.105f, 0.105f) : new Color(0.13f, 0.13f, 0.13f);
+            Color laneColor = index % 2 == 0 ? UiColors.TimelineLaneEven : UiColors.TimelineLaneOdd;
 
             string rowLabel = row.Section + " / " + row.Label;
-            var header = CreateTimelineCell(rowLabel, 0, y, TimelineStripLabelWidth, TimelineStripLaneHeight, new Color(0.15f, 0.15f, 0.15f));
+            var header = CreateTimelineCell(rowLabel, 0, y, TimelineStripLabelWidth, TimelineStripLaneHeight, UiColors.TimelineLabelBg);
             RegisterTimelineRowClick(header, index);
             _timelineStripContent.Add(header);
 
@@ -1411,7 +1448,7 @@ namespace MxFramework.Combat.Editor
             for (int frame = 0; frame < totalFrames; frame += minorStep)
             {
                 float tickX = TimelineStripLabelWidth + FrameToTimelineX(frame, totalFrames, trackWidth);
-                var grid = CreateTimelineBlock(tickX, y, 1, TimelineStripLaneHeight, new Color(0.2f, 0.2f, 0.2f, 0.45f));
+                var grid = CreateTimelineBlock(tickX, y, 1, TimelineStripLaneHeight, UiColors.TimelineGridLine);
                 grid.pickingMode = PickingMode.Ignore;
                 _timelineStripContent.Add(grid);
             }
@@ -1426,7 +1463,7 @@ namespace MxFramework.Combat.Editor
                 emptyLabel.style.width = 80;
                 emptyLabel.style.height = 18;
                 emptyLabel.style.fontSize = 10;
-                emptyLabel.style.color = new Color(0.55f, 0.55f, 0.55f);
+                emptyLabel.style.color = UiColors.TimelineEmptyLaneText;
                 _timelineStripContent.Add(emptyLabel);
                 return;
             }
@@ -1436,6 +1473,10 @@ namespace MxFramework.Combat.Editor
             float x = TimelineStripLabelWidth + FrameToTimelineX(startFrame, totalFrames, trackWidth);
             float width = Math.Max(4f, (endFrame - startFrame + 1) * GetTimelineFrameWidth(totalFrames, trackWidth));
             var bar = CreateTimelineBlock(x, y + 5, width, TimelineStripLaneHeight - 10, GetTimelineBarColor(row));
+            bar.style.borderBottomLeftRadius = 3;
+            bar.style.borderBottomRightRadius = 3;
+            bar.style.borderTopLeftRadius = 3;
+            bar.style.borderTopRightRadius = 3;
             bar.tooltip = BuildTimelineTooltip(row);
             bool draggable = IsTimelineRangeDraggable(row);
             var leftHandle = CreateTimelineRangeHandle(true);
@@ -1447,10 +1488,10 @@ namespace MxFramework.Combat.Editor
 
             if (index == _selectedTimelineRowIndex)
             {
-                bar.style.borderBottomColor = Color.white;
-                bar.style.borderLeftColor = Color.white;
-                bar.style.borderRightColor = Color.white;
-                bar.style.borderTopColor = Color.white;
+                bar.style.borderBottomColor = UiColors.SelectionBorder;
+                bar.style.borderLeftColor = UiColors.SelectionBorder;
+                bar.style.borderRightColor = UiColors.SelectionBorder;
+                bar.style.borderTopColor = UiColors.SelectionBorder;
                 bar.style.borderBottomWidth = 1;
                 bar.style.borderLeftWidth = 1;
                 bar.style.borderRightWidth = 1;
@@ -1471,7 +1512,7 @@ namespace MxFramework.Combat.Editor
             barLabel.style.width = Math.Max(36f, width - 10f);
             barLabel.style.height = 16;
             barLabel.style.fontSize = 10;
-            barLabel.style.color = Color.white;
+            barLabel.style.color = UiColors.SelectionBorder;
             bar.userData = new TimelineBarData(index, barLabel, leftHandle, rightHandle, totalFrames, trackWidth);
             if (draggable)
             {
@@ -1719,10 +1760,10 @@ namespace MxFramework.Combat.Editor
             CombatAuthoringSceneState.SetSelection(new CombatAuthoringSelection(row.Section, row.TrackId, row.PropertyPath));
             RefreshDetail(row);
 
-            bar.style.borderBottomColor = Color.white;
-            bar.style.borderLeftColor = Color.white;
-            bar.style.borderRightColor = Color.white;
-            bar.style.borderTopColor = Color.white;
+            bar.style.borderBottomColor = UiColors.SelectionBorder;
+            bar.style.borderLeftColor = UiColors.SelectionBorder;
+            bar.style.borderRightColor = UiColors.SelectionBorder;
+            bar.style.borderTopColor = UiColors.SelectionBorder;
             bar.style.borderBottomWidth = 1;
             bar.style.borderLeftWidth = 1;
             bar.style.borderRightWidth = 1;
@@ -2173,12 +2214,12 @@ namespace MxFramework.Combat.Editor
             {
                 if (report == null || report.IssueCount == 0)
                 {
-                    _validationLabel.text = "验证通过";
+                    _validationLabel.text = "\u2705 验证通过";
                     _validationLabel.style.color = UiColors.SuccessGreen;
                 }
                 else
                 {
-                    _validationLabel.text = (report.HasErrors ? "存在错误：" : "存在提示：") + report.IssueCount;
+                    _validationLabel.text = (report.HasErrors ? "\u274C 存在错误：" : "\u26A0 存在提示：") + report.IssueCount;
                     _validationLabel.style.color = report.HasErrors ? UiColors.ErrorRed : UiColors.WarnAmber;
                 }
             }
@@ -2296,7 +2337,9 @@ namespace MxFramework.Combat.Editor
         private void BindIssueRow(VisualElement element, int index)
         {
             CombatAuthoringIssue issue = _issueRows[index];
-            element.Q<Label>("title").text = issue.Severity + " | " + issue.SourceAsset + " | " + issue.Section + " | " + issue.Field;
+            Label titleLabel = element.Q<Label>("title");
+            titleLabel.text = IssueSeverityIcon(issue.Severity) + " " + issue.Severity + " | " + issue.SourceAsset + " | " + issue.Section + " | " + issue.Field;
+            titleLabel.style.color = IssueSeverityColor(issue.Severity);
             element.Q<Label>("detail").text = issue.Message + " 建议：" + issue.SuggestedFix + " Frame=" + FormatRange(issue.FrameRange);
             VisualElement actions = element.Q<VisualElement>("actions");
             CreateIssueQuickActions(actions, issue);
@@ -3629,7 +3672,7 @@ namespace MxFramework.Combat.Editor
                 || string.Equals(section, "Hurtbox", StringComparison.Ordinal);
         }
 
-private static VisualElement CreatePanel(string title)
+        private static VisualElement CreatePanel(string title)
         {
             var panel = new VisualElement();
             panel.style.backgroundColor = UiColors.Surface;
@@ -3654,7 +3697,7 @@ private static VisualElement CreatePanel(string title)
             return panel;
         }
 
-private static Label SectionTitle(string text)
+        private static Label SectionTitle(string text)
         {
             var label = new Label(text);
             label.tooltip = Tooltip(text);
@@ -3848,7 +3891,7 @@ private static Label SectionTitle(string text)
             return field;
         }
 
-private static Button CreateButton(string text, Action action)
+        private static Button CreateButton(string text, Action action)
         {
             var button = new Button(action) { text = text };
             button.tooltip = Tooltip(text);
@@ -3863,7 +3906,27 @@ private static Button CreateButton(string text, Action action)
             button.style.borderTopLeftRadius = 4;
             button.style.borderTopRightRadius = 4;
             button.style.fontSize = 11;
+            button.style.backgroundColor = UiColors.SurfaceAlt;
+            button.style.borderBottomColor = UiColors.Border;
+            button.style.borderLeftColor = UiColors.Border;
+            button.style.borderRightColor = UiColors.Border;
+            button.style.borderTopColor = UiColors.Border;
+            button.style.borderBottomWidth = 1;
+            button.style.borderLeftWidth = 1;
+            button.style.borderRightWidth = 1;
+            button.style.borderTopWidth = 1;
+            button.RegisterCallback<PointerEnterEvent>(_ => OnButtonHover(button, true));
+            button.RegisterCallback<PointerLeaveEvent>(_ => OnButtonHover(button, false));
             return button;
+        }
+
+        private static void OnButtonHover(VisualElement button, bool hover)
+        {
+            button.style.backgroundColor = hover ? UiColors.ButtonHover : UiColors.SurfaceAlt;
+            button.style.borderBottomColor = hover ? UiColors.TextSecondary : UiColors.Border;
+            button.style.borderLeftColor = hover ? UiColors.TextSecondary : UiColors.Border;
+            button.style.borderRightColor = hover ? UiColors.TextSecondary : UiColors.Border;
+            button.style.borderTopColor = hover ? UiColors.TextSecondary : UiColors.Border;
         }
 
         private static void AddProperty(VisualElement root, SerializedObject serialized, string propertyName, string label)
@@ -4693,14 +4756,14 @@ private static Button CreateButton(string text, Action action)
             {
                 if (_lastExportResult.Success)
                 {
-                    _validationLabel.text = "导出 JSON 已生成：" + _lastExportResult.Package.FileCount + " files";
+                    _validationLabel.text = "\u2705 导出 JSON 已生成：" + _lastExportResult.Package.FileCount + " files";
                     _validationLabel.style.color = _lastReport != null && _lastReport.IssueCount > 0
                         ? UiColors.WarnAmber
                         : UiColors.SuccessGreen;
                 }
                 else
                 {
-                    _validationLabel.text = "导出 JSON 失败：validation gate";
+                    _validationLabel.text = "\u274C 导出 JSON 失败：validation gate";
                     _validationLabel.style.color = UiColors.ErrorRed;
                 }
             }
@@ -4852,6 +4915,32 @@ private static Button CreateButton(string text, Action action)
             return CombatAuthoringExportReport.BuildValidationText(report);
         }
 
+        private static string IssueSeverityIcon(CombatAuthoringSeverity severity)
+        {
+            switch (severity)
+            {
+                case CombatAuthoringSeverity.Error:
+                    return "\u274C";
+                case CombatAuthoringSeverity.Warning:
+                    return "\u26A0";
+                default:
+                    return "\u2139";
+            }
+        }
+
+        private static Color IssueSeverityColor(CombatAuthoringSeverity severity)
+        {
+            switch (severity)
+            {
+                case CombatAuthoringSeverity.Error:
+                    return UiColors.ErrorRed;
+                case CombatAuthoringSeverity.Warning:
+                    return UiColors.WarnAmber;
+                default:
+                    return UiColors.TextSecondary;
+            }
+        }
+
         private static string GetAssetGuid(UnityEngine.Object asset)
         {
             if (asset == null)
@@ -4933,7 +5022,7 @@ private static Button CreateButton(string text, Action action)
             label.style.whiteSpace = WhiteSpace.NoWrap;
             label.style.overflow = Overflow.Hidden;
             label.style.fontSize = 11;
-            label.style.color = new Color(0.82f, 0.82f, 0.82f);
+            label.style.color = UiColors.TimelineHeaderText;
             label.style.backgroundColor = backgroundColor;
             return label;
         }
@@ -4958,7 +5047,7 @@ private static Button CreateButton(string text, Action action)
             handle.style.top = 0;
             handle.style.width = TimelineRangeEdgeHandleWidth;
             handle.style.height = Length.Percent(100);
-            handle.style.backgroundColor = new Color(1f, 1f, 1f, 0.7f);
+            handle.style.backgroundColor = UiColors.HandleDefault;
             if (left)
             {
                 handle.style.left = 0;
@@ -4990,28 +5079,28 @@ private static Button CreateButton(string text, Action action)
             {
                 if (string.Equals(row.Label, "Startup", StringComparison.Ordinal))
                 {
-                    return new Color(0.36f, 0.52f, 0.88f);
+                    return UiColors.BarStartup;
                 }
 
                 if (string.Equals(row.Label, "Active", StringComparison.Ordinal))
                 {
-                    return new Color(0.82f, 0.3f, 0.24f);
+                    return UiColors.BarActive;
                 }
 
-                return new Color(0.34f, 0.62f, 0.36f);
+                return UiColors.BarRecovery;
             }
 
             if (string.Equals(row.Section, "Hitbox", StringComparison.Ordinal))
             {
-                return new Color(0.92f, 0.36f, 0.24f);
+                return UiColors.BarHitbox;
             }
 
             if (string.Equals(row.Section, "Hurtbox", StringComparison.Ordinal))
             {
-                return new Color(0.22f, 0.62f, 0.86f);
+                return UiColors.BarHurtbox;
             }
 
-            return new Color(0.86f, 0.58f, 0.18f);
+            return UiColors.BarTrace;
         }
 
         private sealed class SceneMarkerResolver : ICombatAuthoringPreviewMarkerResolver

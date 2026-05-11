@@ -29,6 +29,9 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayAbilityCastRequest` | 通过 caster id、ability id、candidate ids 和 trace id 表达释放请求 |
 | `GameplayAbilityRuntimeService` | 将世界实体 / ability id 解析为 `AbilityContext` 并调用 `IAbility.Cast` |
 | `GameplayAbilityRuntimeResult` / `GameplayAbilityRuntimeFailureCode` | Ability runtime adapter 的结构化结果和失败码 |
+| `GameplayRuntimeModule` | `RuntimeHost` 模块入口，drain `RuntimeCommandBuffer`、执行 Gameplay command、tick world 并输出 frame event |
+| `GameplayRuntimeCommandIds` / `GameplayRuntimeCommandFactory` | Gameplay command id 和 `RuntimeCommand` 构造工具 |
+| `GameplayRuntimeEvent` / `GameplayRuntimeEventType` | Gameplay 按帧事件 DTO，用于 UI、Audio、Diagnostics 和 Replay 边界 |
 | `ITargetSelector` | 从候选目标中选择技能目标 |
 | `GameplayTargetCandidate` | 可目标选择的实体快照，包含 entity/team/alive/tag/status |
 | `GameplayTargetQuery` | 通用目标查询：caster、alive、team relation、required tags、blocked statuses、max targets |
@@ -77,6 +80,12 @@ GameplayWorld
   -> stable Tick(deltaTime)
   -> world snapshot / diagnostics / hash contributor
 
+GameplayRuntimeModule
+  drains RuntimeCommandBuffer
+  -> CastAbility / DespawnEntity command
+  -> GameplayWorld + GameplayAbilityRuntimeService
+  -> RuntimeEventQueue<GameplayRuntimeEvent>
+
 AbilityGraphRuntimeExecutor
   validates AbilityGraphDefinition
   -> TargetQuery via GameplayTargetingService
@@ -115,6 +124,15 @@ Ability runtime adapter：
 - `GameplayAbilityRegistry` 按 ability id 注册 `IAbility`，拒绝 null / duplicate。
 - `GameplayAbilityRuntimeService.Cast(request)` 解析 caster、ability 和 optional candidate ids，再复用现有 `IAbility.Cast(AbilityContext)`。
 - 缺 caster、缺 ability、空候选目标都会返回结构化 failure code，不抛难以诊断的空引用。
+
+Runtime module / command loop：
+
+- `GameplayRuntimeModule` 可注册到 `RuntimeHost`，默认 `Simulation` stage、priority `100`，让 timer 等更早 priority 的模块先投递 command。
+- Module 每帧调用 `RuntimeCommandBuffer.DrainForFrame(frame)`，按 `RuntimeCommandBuffer` 的稳定排序执行 Gameplay command。
+- v0 command 包含 `CastAbility` 和 `DespawnEntity`。`CastAbility` payload 约定为 `payload0=casterEntityId`、`payload1=abilityId`、`payload2=optional single candidateEntityId`。
+- `GameplayRuntimeCommandFactory` 提供 command 构造入口，避免 Demo / 项目层手写 command id 和 payload 位序。
+- Module 默认在 command 后调用 `GameplayWorld.Tick(deltaTime)`；需要外部手动 tick 时可关闭 `tickWorldAutomatically`。
+- Module 将结果写入 `RuntimeEventQueue<GameplayRuntimeEvent>`，事件包含 frame、command、caster、ability、target、failure code、reason 和 traceId。UI / Audio / Diagnostics 应消费事件队列，而不是直接监听内部私有状态。
 
 Hash / diagnostics：
 
@@ -215,6 +233,8 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - Team / Tag / Status 基础数据结构。
 - GameplayTargetingService 逻辑目标过滤与 rejected reasons。
 - GameplayAbilityRuntimeService 世界级 Ability cast adapter。
+- GameplayRuntimeModule：RuntimeHost / RuntimeCommandBuffer 驱动的 Gameplay command loop。
+- GameplayRuntimeEvent：按帧 drain 的 Gameplay runtime event queue。
 - Ability Runtime Graph v0：图契约、确定性执行、phase timeline、diagnostics、hash。
 - 自身目标和单敌方目标选择。
 - 直接伤害效果。
@@ -232,7 +252,7 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - WGame Ability JSON 导入或配置表绑定。
 - 可视化 Ability Graph 编辑器、GraphView、Timeline asset、Animation Event 绑定。
 - 物理范围、Combat bridge、复杂多目标规则库、公式系统、战斗判定优先级。
-- Snapshot JSON 序列化、编辑器面板和 Runtime Preview 协议接入。
+- 通用 Gameplay SaveState restore、完整 Ability cooldown/cost/cast/interruption 管线、Snapshot JSON 序列化、编辑器面板和 Runtime Preview 协议接入。
 
 ## Config Driven Ability
 

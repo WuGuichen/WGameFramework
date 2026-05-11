@@ -95,6 +95,7 @@
 | `Tasks/TETRIS_RUNTIME_VALIDATION_01.md` | Tetris Runtime Validation：用纯 C# 经典小游戏验证 RuntimeHost、CommandBuffer、Replay playback hash、SaveState JSON roundtrip，并提供 `Assets/Scenes/TetrisRuntimeValidation.unity` 手动试玩入口。 |
 | `Tasks/APP_SCENE_FLOW_01_FOUNDATION.md` | App / Scene Flow Foundation：新增 App 状态流转、SceneFlow 串行加载、Unity SceneManager 适配和 RuntimeHost 模块入口。 |
 | `Tasks/PHASE11_RUNTIME_GAMEPLAY_GOAL.md` | Runtime Gameplay Foundation 已 Accepted / Closed；M1-M5 公共 API、配置驱动、诊断快照、配置变更和 Ability authoring contract 已收口。 |
+| `Tasks/GAMEPLAY_FOUNDATION_02_RUNTIME_LOOP_AND_COMMANDS.md` | Gameplay Foundation 02：新增 `GameplayRuntimeModule`，将 Gameplay 接入 RuntimeHost / RuntimeCommandBuffer / RuntimeEventQueue 主线。 |
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |
 | `Tasks/RUNTIME_FOUNDATION_02_FRAME_COMMAND_REPLAY.md` | Runtime Foundation P0-2：规划 Frame Clock、Command Buffer、Replay record/playback 和 result hash。 |
 | `Tasks/RUNTIME_FOUNDATION_03_SAVE_STATE_SERIALIZATION.md` | Runtime Foundation P0-3：规划 SaveState 契约、版本迁移、Gameplay slice 保存恢复和结构化错误。 |
