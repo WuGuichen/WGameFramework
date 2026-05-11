@@ -16,7 +16,7 @@ fi
 
 cd "$mirror_root"
 
-mkdir -p Assets/Scripts
+mkdir -p Assets/Scripts Assets/UI
 
 rsync -a --delete \
   --exclude='.git/' \
@@ -31,6 +31,16 @@ rsync -a --delete \
   --exclude='.DS_Store' \
   "$source_root/Docs/" \
   "$mirror_root/Docs/"
+
+rsync -a --delete --delete-excluded \
+  --include='*/' \
+  --include='*.uxml' \
+  --include='*.uxml.meta' \
+  --include='*.uss' \
+  --include='*.uss.meta' \
+  --exclude='*' \
+  "$source_root/Assets/UI/" \
+  "$mirror_root/Assets/UI/"
 
 cp "$source_root/AGENTS.md" "$mirror_root/AGENTS.md"
 cp "$source_root/Assets/Scripts/MxFramework.meta" "$mirror_root/Assets/Scripts/MxFramework.meta"
