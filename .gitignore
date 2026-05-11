@@ -17,7 +17,12 @@ Packages/
 Assets/Scenes/
 Assets/Art/
 Assets/Config/
-Assets/UI/
+Assets/UI/**
+!Assets/UI/
+!Assets/UI/**/*.uxml
+!Assets/UI/**/*.uxml.meta
+!Assets/UI/**/*.uss
+!Assets/UI/**/*.uss.meta
 
 # Source control metadata from the source workspace must never be mirrored.
 .svn/
