@@ -1,0 +1,25 @@
+.DS_Store
+.idea/
+.vscode/
+*.csproj
+*.sln
+
+# Unity project/generated data intentionally not published here.
+Library/
+Temp/
+Obj/
+Build/
+Builds/
+Logs/
+UserSettings/
+ProjectSettings/
+Packages/
+Assets/Scenes/
+Assets/Art/
+Assets/Config/
+Assets/UI/
+
+# Source control metadata from the source workspace must never be mirrored.
+.svn/
+.gitnexus/
+.claude/
