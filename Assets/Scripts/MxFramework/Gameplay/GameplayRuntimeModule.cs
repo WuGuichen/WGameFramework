@@ -14,7 +14,7 @@ namespace MxFramework.Gameplay
         private readonly GameplayCommandExecutionState _commandState = new GameplayCommandExecutionState();
         private readonly RingBuffer<GameplayAbilityRuntimeResult> _abilityResults;
         private readonly List<GameplayAbilityRuntimeResult> _abilityResultsView = new List<GameplayAbilityRuntimeResult>();
-        private readonly RuntimeEventQueue<GameplayRuntimeEvent> _events = new RuntimeEventQueue<GameplayRuntimeEvent>();
+        private readonly RuntimeEventQueue<GameplayRuntimeEvent> _events;
 
         public GameplayRuntimeModule(
             GameplayWorld world,
@@ -25,20 +25,32 @@ namespace MxFramework.Gameplay
             RuntimeTickStage tickStage = RuntimeTickStage.Simulation,
             int priority = 100,
             int abilityResultCapacity = DefaultAbilityResultCapacity,
-            GameplaySystemPipeline systemPipeline = null)
+            GameplaySystemPipeline systemPipeline = null,
+            Action<GameplaySystemPipeline> configureDefaultPipeline = null,
+            GameplayComponentWorld componentWorld = null)
             : base(moduleId, tickStage, priority)
         {
+            if (systemPipeline != null && configureDefaultPipeline != null)
+            {
+                throw new ArgumentException(
+                    "Configure default pipeline cannot be used when an explicit gameplay system pipeline is provided.",
+                    nameof(configureDefaultPipeline));
+            }
+
             World = world ?? throw new ArgumentNullException(nameof(world));
             AbilityRegistry = abilityRegistry ?? throw new ArgumentNullException(nameof(abilityRegistry));
             CommandBuffer = commandBuffer ?? throw new ArgumentNullException(nameof(commandBuffer));
+            ComponentWorld = componentWorld ?? new GameplayComponentWorld();
+            _events = ComponentWorld.Events;
             TickWorldAutomatically = tickWorldAutomatically;
             _abilityResults = new RingBuffer<GameplayAbilityRuntimeResult>(abilityResultCapacity);
-            SystemPipeline = systemPipeline ?? CreateDefaultSystemPipeline(AbilityRegistry, RecordAbilityResult);
+            SystemPipeline = systemPipeline ?? CreateConfiguredDefaultPipeline(configureDefaultPipeline);
         }
 
         public GameplayWorld World { get; }
         public GameplayAbilityRegistry AbilityRegistry { get; }
         public RuntimeCommandBuffer CommandBuffer { get; }
+        public GameplayComponentWorld ComponentWorld { get; }
         public GameplaySystemPipeline SystemPipeline { get; }
         public bool TickWorldAutomatically { get; }
         public int AbilityResultCapacity => _abilityResults.Capacity;
@@ -116,7 +128,8 @@ namespace MxFramework.Gameplay
                 World,
                 _drainedCommands,
                 _events,
-                _commandState);
+                _commandState,
+                ComponentWorld);
             SystemPipeline.Tick(context);
         }
 
@@ -148,6 +161,13 @@ namespace MxFramework.Gameplay
             pipeline.Add(new GameplayAbilityCommandSystem(abilityRegistry, resultSink));
             pipeline.Add(new GameplayEntityLifecycleCommandSystem());
             pipeline.Add(new GameplayUnsupportedCommandSystem());
+            return pipeline;
+        }
+
+        private GameplaySystemPipeline CreateConfiguredDefaultPipeline(Action<GameplaySystemPipeline> configureDefaultPipeline)
+        {
+            GameplaySystemPipeline pipeline = CreateDefaultSystemPipeline(AbilityRegistry, RecordAbilityResult);
+            configureDefaultPipeline?.Invoke(pipeline);
             return pipeline;
         }
     }

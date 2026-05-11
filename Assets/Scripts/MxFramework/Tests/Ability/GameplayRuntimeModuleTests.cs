@@ -147,6 +147,52 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void Tick_ConfiguredDefaultPipelineKeepsModuleAbilityResultsSink()
+        {
+            const int customCommandId = 888002;
+            RuntimeEntity player = CreateEntity(1, 1, 1000, 120, 20);
+            RuntimeEntity enemy = CreateEntity(2, 2, 600, 80, 10);
+            var world = new GameplayWorld();
+            world.Register(player);
+            world.Register(enemy);
+            var abilities = new GameplayAbilityRegistry();
+            Assert.IsTrue(abilities.TryRegister(CreateStrikeAbility(), out string failure), failure);
+            var buffer = new RuntimeCommandBuffer();
+            var handledCommands = new List<RuntimeCommand>();
+            var module = new GameplayRuntimeModule(
+                world,
+                abilities,
+                buffer,
+                tickWorldAutomatically: false,
+                configureDefaultPipeline: pipeline => pipeline.Add(new CustomHandledCommandSystem(customCommandId, handledCommands)));
+
+            buffer.Enqueue(GameplayRuntimeCommandFactory.CastAbility(RuntimeFrame.Zero, player.EntityId, AbilityStrike, traceId: "strike"));
+            buffer.Enqueue(new RuntimeCommand(RuntimeFrame.Zero, sourceId: 0, commandId: customCommandId, targetId: 7, traceId: "custom"));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            Assert.AreEqual(1, module.AbilityResults.Count);
+            Assert.AreEqual("strike", module.AbilityResults[0].TraceId);
+            Assert.AreEqual(1, handledCommands.Count);
+            var events = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(1, module.DrainEvents(RuntimeFrame.Zero, events));
+            Assert.AreEqual(GameplayRuntimeEventType.AbilityCastSucceeded, events[0].Type);
+        }
+
+        [Test]
+        public void Constructor_RejectsCustomPipelineAndDefaultPipelineConfigurerTogether()
+        {
+            var pipeline = new GameplaySystemPipeline();
+
+            Assert.Throws<System.ArgumentException>(() => new GameplayRuntimeModule(
+                new GameplayWorld(),
+                new GameplayAbilityRegistry(),
+                new RuntimeCommandBuffer(),
+                systemPipeline: pipeline,
+                configureDefaultPipeline: _ => { }));
+        }
+
+        [Test]
         public void RuntimeHost_TicksGameplayModuleAfterEarlierModules()
         {
             RuntimeEntity player = CreateEntity(1, 1, 1000, 120, 20);

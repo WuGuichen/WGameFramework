@@ -46,7 +46,7 @@ GameplayUnsupportedCommandSystem
 
 如果调用方传入 custom pipeline，则由调用方负责注册需要的 command systems。Module 不再额外执行 built-in command switch。
 
-需要在默认 Gameplay command systems 之上扩展时，调用方可以使用 `GameplayRuntimeModule.CreateDefaultSystemPipeline(...)` 创建默认 pipeline，再 `Add` 自定义 system。
+需要在默认 Gameplay command systems 之上扩展时，优先使用 `GameplayRuntimeModule` 的 `configureDefaultPipeline` 构造参数追加自定义 system。显式传入 custom pipeline 表示调用方完全接管 pipeline 注册。
 
 ## Command Flow
 
@@ -68,7 +68,7 @@ Drain RuntimeCommandBuffer
 
 `GameplaySystemContext.Commands` 仍是帧内临时只读 view，command systems 不能持有列表引用。
 
-处理或明确拒绝 command 的 system 必须调用 `context.CommandState.MarkHandled(command)`。`GameplayUnsupportedCommandSystem` 只拒绝未 handled command，不维护硬编码 command id 白名单。
+处理或明确拒绝 command 的 system 必须调用 `context.CommandState.MarkHandled(command)`，且必须使用 `GameplaySystemContext.Commands` 中读到的原始 command 值。`GameplayUnsupportedCommandSystem` 只拒绝未 handled command，不维护硬编码 command id 白名单。自定义 command system 应使用低于 unsupported system 默认 `int.MaxValue` 的 priority。
 
 ## Ability Results
 

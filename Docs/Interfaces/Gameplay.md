@@ -41,6 +41,7 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayComponentStore<T>` / `GameplayComponentSnapshot<T>` | 只接受 `GameplayEntityId` 的稳定 component store 和 snapshot entry |
 | `GameplayComponentRegistry` | 组合 `GameplayEntityLifecycle` 和 registered component stores，统一 destroy cleanup |
 | `GameplayComponentPair<TPrimary,TSecondary>` / `GameplayComponentQuery` | 稳定 component query helper，支持单组件拷贝和双组件 join |
+| `GameplayComponentWorld` / `GameplayComponentWorldSnapshot` | ECS-style component runtime 组合根，聚合 component registry 和 gameplay runtime event queue |
 | `GameplayIdentityComponent` | ECS-style component runtime 的配置身份数据 |
 | `GameplayTeamComponent` | ECS-style team 数据，复用 `GameplayTeamRelations` |
 | `GameplayLifecycleComponent` / `GameplayLifecycleState` | ECS-style lifecycle state 数据 |
@@ -186,6 +187,9 @@ Component store v0：
 - `GameplayComponentQuery` 提供稳定查询辅助：`CopyEntities`、`CopyComponents`、`CopyEntries` 和 `CopyPairs`。
 - `GameplayComponentQuery.CopyPairs(primary, secondary, output)` 以 primary store 的稳定 entity id 顺序输出交集。
 - Query 方法 append 到调用方 output，不隐式 clear，也不暴露 store 内部容器。
+- `GameplayComponentWorld` 是 component runtime 组合根，聚合 `GameplayComponentRegistry` 和 `RuntimeEventQueue<GameplayRuntimeEvent>`。
+- `GameplayComponentWorld.Clear()` 清空 component registry state 和 pending events，不处理旧 `GameplayWorld` / `RuntimeEntity`。
+- `GameplayRuntimeModule.ComponentWorld` 默认存在；module 的 `Events` 与 `ComponentWorld.Events` 是同一个 queue。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Core components v0：
@@ -202,10 +206,13 @@ System pipeline v0：
 - 同 phase / priority 下 registration order 具有语义；注册顺序变化会影响执行顺序。
 - Disabled system 会被跳过，但保留在 pipeline snapshot 中。
 - `GameplaySystemContext.Commands` 是 `GameplayRuntimeModule` 已 drain 的帧内临时只读 view；system 不拿 `RuntimeCommandBuffer`，也不能调用 `DrainForFrame`。需要跨 Tick 保留 command 时必须复制值，不能持有列表引用。
-- `GameplaySystemContext.CommandState` 是同一帧 pipeline-local 状态；处理或明确拒绝 command 的 system 必须调用 `MarkHandled(command)`。
+- `GameplaySystemContext.CommandState` 是同一帧 pipeline-local 状态；处理或明确拒绝 command 的 system 必须调用 `MarkHandled(command)`，并且必须使用从 `GameplaySystemContext.Commands` 读到的原始 command 值，不要重构 command 后标记。
 - `GameplaySystemContext.Events` 是 module 的 `RuntimeEventQueue<GameplayRuntimeEvent>`，system 可以 enqueue frame event，但 Gameplay 内部不强制 flush。
+- `GameplaySystemContext.ComponentWorld` 是新 component runtime 入口；component systems 应通过它访问 registry / stores，不要长期持有私自 new 出来的 stores。
 - `GameplayRuntimeModule` 默认创建 command systems pipeline。v0 执行顺序是 drain command、pipeline PreCommand、pipeline Command、pipeline Simulation、pipeline Resolution、pipeline Diagnostics、可选 world tick。
-- Custom pipeline 由调用方负责注册需要的 command systems；module 不再执行内置 command switch。要基于默认 pipeline 扩展时，调用 `GameplayRuntimeModule.CreateDefaultSystemPipeline(...)` 后再 `Add` 自定义 system。
+- 要基于默认 pipeline 扩展时，优先使用 `GameplayRuntimeModule` 的 `configureDefaultPipeline` 构造参数追加自定义 system；这样 module 仍会把 ability result sink 接到 `AbilityResults`。
+- 显式传入 custom pipeline 表示调用方完全接管 pipeline 注册；module 不再执行内置 command switch，也不会自动重接外部 pipeline 中 ability system 的 result sink。
+- Custom command systems 应使用低于 `GameplayUnsupportedCommandSystem` 默认 `int.MaxValue` 的 priority，除非调用方要替换 unsupported handling。
 - System 抛异常时，pipeline 用 `GameplaySystemPipelineException` 包装 system id 和 phase 后重新抛出。
 
 Gameplay command systems v0：
