@@ -1,3 +1,4 @@
+using System;
 using MxFramework.Runtime;
 
 namespace MxFramework.Gameplay
@@ -38,6 +39,7 @@ namespace MxFramework.Gameplay
             FailureCode = failureCode;
             Reason = reason ?? string.Empty;
             TraceId = traceId ?? string.Empty;
+            ValidateComponentEntity(componentEntityIndex, componentEntityGeneration);
             ComponentEntityIndex = componentEntityIndex;
             ComponentEntityGeneration = componentEntityGeneration;
         }
@@ -54,5 +56,27 @@ namespace MxFramework.Gameplay
         public int ComponentEntityIndex { get; }
         public int ComponentEntityGeneration { get; }
         public GameplayEntityId ComponentEntityId => new GameplayEntityId(ComponentEntityIndex, ComponentEntityGeneration);
+
+        public bool TryGetComponentEntityId(out GameplayEntityId entityId)
+        {
+            if (ComponentEntityIndex <= 0 || ComponentEntityGeneration <= 0)
+            {
+                entityId = default;
+                return false;
+            }
+
+            entityId = new GameplayEntityId(ComponentEntityIndex, ComponentEntityGeneration);
+            return true;
+        }
+
+        private static void ValidateComponentEntity(int index, int generation)
+        {
+            if (index < 0)
+                throw new ArgumentOutOfRangeException(nameof(index), "Gameplay runtime event component entity index cannot be negative.");
+            if (generation < 0)
+                throw new ArgumentOutOfRangeException(nameof(generation), "Gameplay runtime event component entity generation cannot be negative.");
+            if ((index == 0) != (generation == 0))
+                throw new ArgumentException("Gameplay runtime event component entity id must be either default or have both index and generation greater than zero.");
+        }
     }
 }

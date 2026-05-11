@@ -6,6 +6,7 @@ namespace MxFramework.Gameplay
     public sealed class GameplayComponentEntityCommandSystem : IGameplaySystem
     {
         public const string DefaultSystemId = "mxframework.gameplay.command.component_entity";
+        public const string MissingComponentWorldReason = "MissingComponentWorld";
         public const string InvalidEntityReason = "InvalidComponentEntity";
         public const string MissingEntityReason = "MissingComponentEntity";
 
@@ -35,22 +36,29 @@ namespace MxFramework.Gameplay
                 RuntimeCommand command = commands[i];
                 if (command.CommandId == GameplayRuntimeCommandIds.CreateComponentEntity)
                 {
-                    ExecuteCreate(context, command);
+                    if (TryGetComponentWorld(context, command, out GameplayComponentWorld componentWorld))
+                        ExecuteCreate(context, command, componentWorld);
+
                     context.CommandState.MarkHandled(command);
                     continue;
                 }
 
                 if (command.CommandId == GameplayRuntimeCommandIds.DestroyComponentEntity)
                 {
-                    ExecuteDestroy(context, command);
+                    if (TryGetComponentWorld(context, command, out GameplayComponentWorld componentWorld))
+                        ExecuteDestroy(context, command, componentWorld);
+
                     context.CommandState.MarkHandled(command);
                 }
             }
         }
 
-        private static void ExecuteCreate(GameplaySystemContext context, RuntimeCommand command)
+        private static void ExecuteCreate(
+            GameplaySystemContext context,
+            RuntimeCommand command,
+            GameplayComponentWorld componentWorld)
         {
-            GameplayEntityId entityId = context.ComponentWorld.CreateEntity();
+            GameplayEntityId entityId = componentWorld.CreateEntity();
             context.Events.Enqueue(context.Frame, new GameplayRuntimeEvent(
                 context.Frame,
                 GameplayRuntimeEventType.ComponentEntityCreated,
@@ -65,7 +73,10 @@ namespace MxFramework.Gameplay
                 componentEntityGeneration: entityId.Generation));
         }
 
-        private static void ExecuteDestroy(GameplaySystemContext context, RuntimeCommand command)
+        private static void ExecuteDestroy(
+            GameplaySystemContext context,
+            RuntimeCommand command,
+            GameplayComponentWorld componentWorld)
         {
             if (!TryReadEntityId(command, out GameplayEntityId entityId))
             {
@@ -73,7 +84,7 @@ namespace MxFramework.Gameplay
                 return;
             }
 
-            if (!context.ComponentWorld.DestroyEntity(entityId))
+            if (!componentWorld.DestroyEntity(entityId))
             {
                 EnqueueRejected(context, command, entityId, MissingEntityReason);
                 return;
@@ -91,6 +102,19 @@ namespace MxFramework.Gameplay
                 traceId: command.TraceId,
                 componentEntityIndex: entityId.Index,
                 componentEntityGeneration: entityId.Generation));
+        }
+
+        private static bool TryGetComponentWorld(
+            GameplaySystemContext context,
+            RuntimeCommand command,
+            out GameplayComponentWorld componentWorld)
+        {
+            componentWorld = context.ComponentWorld;
+            if (componentWorld != null)
+                return true;
+
+            EnqueueRejected(context, command, default, MissingComponentWorldReason);
+            return false;
         }
 
         private static bool TryReadEntityId(RuntimeCommand command, out GameplayEntityId entityId)

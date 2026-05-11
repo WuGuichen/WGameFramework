@@ -74,6 +74,21 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void Context_RejectsMismatchedEventsAndComponentWorldEvents()
+        {
+            var componentWorld = new GameplayComponentWorld();
+
+            Assert.Throws<ArgumentException>(() => new GameplaySystemContext(
+                RuntimeFrame.Zero,
+                0d,
+                0d,
+                new GameplayWorld(),
+                Array.Empty<RuntimeCommand>(),
+                new RuntimeEventQueue<GameplayRuntimeEvent>(),
+                componentWorld: componentWorld));
+        }
+
+        [Test]
         public void RuntimeModule_RunsPipelineWithDrainedCommandsWithoutExposingCommandBuffer()
         {
             var world = new GameplayWorld();

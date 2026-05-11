@@ -51,7 +51,9 @@ public GameplayComponentWorld ComponentWorld { get; }
 - `GameplayComponentWorld` 是新 component runtime 的组合根。
 - Component store 应通过 `GameplayComponentWorld.Registry` / `CreateStore` / `GetOrCreateStore` 创建或注册。
 - `GameplayRuntimeModule.Events` 与 `GameplayRuntimeModule.ComponentWorld.Events` 指向同一个 queue。
-- `GameplayComponentWorld.Clear()` 会清空 component registry state 和 pending events，但不处理旧 `GameplayWorld` / `RuntimeEntity`。
+- `GameplaySystemContext.Events` 与 `GameplaySystemContext.ComponentWorld.Events` 必须是同一个 queue；手动构造 context 时不一致会抛异常。
+- `GameplayRuntimeModule` 驱动的 `GameplaySystemContext` 保证 `ComponentWorld` 非 null。手动构造 context 时，只有不访问 component runtime 的测试 / system 可以省略 `ComponentWorld`。
+- `GameplayComponentWorld.Clear()` 会清空 component registry state 和 pending events，但不处理旧 `GameplayWorld` / `RuntimeEntity`；它只应用于 session reset / world reset，不应用于普通 gameplay cleanup。
 - 本批次只建立访问边界，不把 Ability / Despawn 改成 component source of truth。
 
 ## 验收

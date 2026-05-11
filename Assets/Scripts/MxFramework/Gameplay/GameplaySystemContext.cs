@@ -27,6 +27,13 @@ namespace MxFramework.Gameplay
             World = world ?? throw new ArgumentNullException(nameof(world));
             Commands = commands ?? throw new ArgumentNullException(nameof(commands));
             Events = events ?? throw new ArgumentNullException(nameof(events));
+            if (componentWorld != null && !ReferenceEquals(Events, componentWorld.Events))
+            {
+                throw new ArgumentException(
+                    "Gameplay system context events must be the same queue as componentWorld.Events.",
+                    nameof(componentWorld));
+            }
+
             CommandState = commandState ?? new GameplayCommandExecutionState();
             ComponentWorld = componentWorld;
         }

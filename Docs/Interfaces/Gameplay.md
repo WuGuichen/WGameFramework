@@ -189,7 +189,7 @@ Component store v0：
 - `GameplayComponentQuery.CopyPairs(primary, secondary, output)` 以 primary store 的稳定 entity id 顺序输出交集。
 - Query 方法 append 到调用方 output，不隐式 clear，也不暴露 store 内部容器。
 - `GameplayComponentWorld` 是 component runtime 组合根，聚合 `GameplayComponentRegistry` 和 `RuntimeEventQueue<GameplayRuntimeEvent>`。
-- `GameplayComponentWorld.Clear()` 清空 component registry state 和 pending events，不处理旧 `GameplayWorld` / `RuntimeEntity`。
+- `GameplayComponentWorld.Clear()` 清空 component registry state 和 pending events，不处理旧 `GameplayWorld` / `RuntimeEntity`；只应用于 session reset / world reset。
 - `GameplayRuntimeModule.ComponentWorld` 默认存在；module 的 `Events` 与 `ComponentWorld.Events` 是同一个 queue。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
@@ -210,6 +210,8 @@ System pipeline v0：
 - `GameplaySystemContext.CommandState` 是同一帧 pipeline-local 状态；处理或明确拒绝 command 的 system 必须调用 `MarkHandled(command)`，并且必须使用从 `GameplaySystemContext.Commands` 读到的原始 command 值，不要重构 command 后标记。
 - `GameplaySystemContext.Events` 是 module 的 `RuntimeEventQueue<GameplayRuntimeEvent>`，system 可以 enqueue frame event，但 Gameplay 内部不强制 flush。
 - `GameplaySystemContext.ComponentWorld` 是新 component runtime 入口；component systems 应通过它访问 registry / stores，不要长期持有私自 new 出来的 stores。
+- `GameplaySystemContext.Events` 与 `GameplaySystemContext.ComponentWorld.Events` 必须一致；手动构造 context 时如果传入不同 queue 会抛异常。
+- `GameplayRuntimeModule` 驱动的 context 保证 `ComponentWorld` 非 null；手动构造 context 时，只有不访问 component runtime 的测试 / system 可以省略它。
 - `GameplayRuntimeModule` 默认创建 command systems pipeline。v0 执行顺序是 drain command、pipeline PreCommand、pipeline Command、pipeline Simulation、pipeline Resolution、pipeline Diagnostics、可选 world tick。
 - 要基于默认 pipeline 扩展时，优先使用 `GameplayRuntimeModule` 的 `configureDefaultPipeline` 构造参数追加自定义 system；这样 module 仍会把 ability result sink 接到 `AbilityResults`。
 - 显式传入 custom pipeline 表示调用方完全接管 pipeline 注册；module 不再执行内置 command switch，也不会自动重接外部 pipeline 中 ability system 的 result sink。
@@ -221,8 +223,9 @@ Gameplay command systems v0：
 - `GameplayAbilityCommandSystem` 处理 `GameplayRuntimeCommandIds.CastAbility`，复用 `GameplayAbilityRuntimeService`，输出 `AbilityCastSucceeded` / `AbilityCastFailed` event，并标记 command handled。
 - `GameplayEntityLifecycleCommandSystem` 处理 `GameplayRuntimeCommandIds.DespawnEntity`，移除 `GameplayWorld` v0 entity 并输出 `EntityDespawned` / `CommandRejected` event，并标记 command handled。
 - `GameplayComponentEntityCommandSystem` 处理 `CreateComponentEntity` / `DestroyComponentEntity`，读写 `GameplayComponentWorld` generation entity，并输出 `ComponentEntityCreated` / `ComponentEntityDestroyed` / `CommandRejected` event。
+- `GameplayComponentEntityCommandSystem` 依赖 `GameplaySystemContext.ComponentWorld`。缺少 component world 时输出 `CommandRejected / MissingComponentWorld`，不抛出 NRE。
 - `DestroyComponentEntity` command 使用 `payload0=index`、`payload1=generation`，拒绝 stale / invalid id，避免误删复用后的新 entity。
-- `GameplayRuntimeEvent.ComponentEntityId` 是 component runtime 的 generation-safe event id；旧 `TargetEntityId` 仍服务 v0 `RuntimeEntity` / Ability 事件。
+- `GameplayRuntimeEvent.ComponentEntityId` 是 component runtime 的 generation-safe event id；旧 `TargetEntityId` 仍服务 v0 `RuntimeEntity` / Ability 事件。事件构造会校验 component entity index / generation 必须同时为 default 或有效值，需要安全读取时使用 `TryGetComponentEntityId`。
 - `GameplayUnsupportedCommandSystem` 在 default pipeline 中拒绝未 handled command，reason 为 `UnsupportedGameplayCommand`；它不维护硬编码 command id 白名单。
 - `GameplayRuntimeModule.AbilityResults` 由 ability command system 的 result sink 写入，仍只保留最近 N 条诊断结果。
 

@@ -118,6 +118,76 @@ namespace MxFramework.Tests.Ability
             Assert.AreNotEqual(GameplayRuntimeEventType.CommandRejected, events[0].Type);
         }
 
+        [Test]
+        public void ComponentEntityCommandsRejectMissingComponentWorld()
+        {
+            var system = new GameplayComponentEntityCommandSystem();
+            var events = new RuntimeEventQueue<GameplayRuntimeEvent>();
+            var command = GameplayRuntimeCommandFactory.CreateComponentEntity(RuntimeFrame.Zero, traceId: "missing-world");
+            var context = new GameplaySystemContext(
+                RuntimeFrame.Zero,
+                0d,
+                0d,
+                new GameplayWorld(),
+                new[] { command },
+                events);
+
+            system.Tick(context);
+
+            var drained = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(1, events.Drain(RuntimeFrame.Zero, drained));
+            Assert.AreEqual(GameplayRuntimeEventType.CommandRejected, drained[0].Type);
+            Assert.AreEqual(GameplayComponentEntityCommandSystem.MissingComponentWorldReason, drained[0].Reason);
+            Assert.IsTrue(context.CommandState.IsHandled(command));
+        }
+
+        [Test]
+        public void RuntimeEvent_ValidatesAndCanTryGetComponentEntityId()
+        {
+            var entityId = new GameplayEntityId(3, 2);
+            var evt = new GameplayRuntimeEvent(
+                RuntimeFrame.Zero,
+                GameplayRuntimeEventType.ComponentEntityCreated,
+                commandId: GameplayRuntimeCommandIds.CreateComponentEntity,
+                casterEntityId: 0,
+                abilityId: 0,
+                targetEntityId: entityId.Index,
+                failureCode: GameplayAbilityRuntimeFailureCode.None,
+                reason: string.Empty,
+                traceId: string.Empty,
+                componentEntityIndex: entityId.Index,
+                componentEntityGeneration: entityId.Generation);
+
+            Assert.IsTrue(evt.TryGetComponentEntityId(out GameplayEntityId parsed));
+            Assert.AreEqual(entityId, parsed);
+            Assert.AreEqual(entityId, evt.ComponentEntityId);
+
+            var defaultEvent = new GameplayRuntimeEvent(
+                RuntimeFrame.Zero,
+                GameplayRuntimeEventType.WorldTicked,
+                commandId: 0,
+                casterEntityId: 0,
+                abilityId: 0,
+                targetEntityId: 0,
+                failureCode: GameplayAbilityRuntimeFailureCode.None,
+                reason: string.Empty,
+                traceId: string.Empty);
+
+            Assert.IsFalse(defaultEvent.TryGetComponentEntityId(out _));
+            Assert.Throws<System.ArgumentException>(() => new GameplayRuntimeEvent(
+                RuntimeFrame.Zero,
+                GameplayRuntimeEventType.ComponentEntityCreated,
+                commandId: GameplayRuntimeCommandIds.CreateComponentEntity,
+                casterEntityId: 0,
+                abilityId: 0,
+                targetEntityId: 1,
+                failureCode: GameplayAbilityRuntimeFailureCode.None,
+                reason: string.Empty,
+                traceId: string.Empty,
+                componentEntityIndex: 1,
+                componentEntityGeneration: 0));
+        }
+
         private readonly struct TestStatComponent : IGameplayComponent
         {
             public TestStatComponent(int value)

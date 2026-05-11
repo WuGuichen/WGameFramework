@@ -24,6 +24,7 @@ GameplayRuntimeCommandFactory.DestroyComponentEntity(RuntimeFrame frame, Gamepla
 public sealed class GameplayComponentEntityCommandSystem : IGameplaySystem
 {
     public const string DefaultSystemId = "mxframework.gameplay.command.component_entity";
+    public const string MissingComponentWorldReason = "MissingComponentWorld";
     public const string InvalidEntityReason = "InvalidComponentEntity";
     public const string MissingEntityReason = "MissingComponentEntity";
 }
@@ -53,14 +54,18 @@ ComponentEntityDestroyed
 int ComponentEntityIndex
 int ComponentEntityGeneration
 GameplayEntityId ComponentEntityId
+bool TryGetComponentEntityId(out GameplayEntityId entityId)
 ```
 
 旧 `TargetEntityId` 仍保留给 v0 `RuntimeEntity` / Ability 事件。Component entity event 用 `ComponentEntityId` 作为 generation-safe id。
+
+`GameplayRuntimeEvent` 构造函数会校验 component entity index / generation 必须同时为 `0/0` 或同时大于 0。需要安全读取时优先使用 `TryGetComponentEntityId`。
 
 ## 语义
 
 - Create command 创建新的 `GameplayEntityId`，并输出 `ComponentEntityCreated`。
 - Destroy command 只销毁 alive 且 generation 匹配的 component entity。
+- 缺少 `GameplaySystemContext.ComponentWorld` 时输出 `CommandRejected / MissingComponentWorld`。
 - Destroy stale / missing entity 输出 `CommandRejected / MissingComponentEntity`。
 - Destroy invalid payload 输出 `CommandRejected / InvalidComponentEntity`。
 - Component entity command system 处理后必须 mark handled，避免 unsupported system 再次拒绝。
@@ -69,5 +74,7 @@ GameplayEntityId ComponentEntityId
 
 - Create command 通过 default module 创建 component entity。
 - Destroy command 通过 default module 销毁 component entity，并清理 registered components。
+- 缺少 ComponentWorld 时输出结构化 rejected event，不抛出 NRE。
 - Stale / invalid destroy command 输出结构化 rejected event。
+- Runtime event 拒绝半合法 component entity id，并可通过 `TryGetComponentEntityId` 安全读取。
 - Component entity commands 不触发 unsupported rejected event。
