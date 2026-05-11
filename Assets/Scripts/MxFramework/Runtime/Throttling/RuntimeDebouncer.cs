@@ -108,9 +108,9 @@ namespace MxFramework.Runtime
 
         private static void ValidateSeconds(string parameterName, double value)
         {
-            if (double.IsNaN(value) || value < 0d)
+            if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d)
             {
-                throw new ArgumentOutOfRangeException(parameterName, "Seconds value cannot be negative or NaN.");
+                throw new ArgumentOutOfRangeException(parameterName, value, "Seconds value must be finite and non-negative.");
             }
         }
     }

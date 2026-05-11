@@ -28,12 +28,15 @@ public sealed class CooldownTracker
     public void Start(int id, RuntimeFrame frame, long durationFrames);
     public long GetRemainingFrames(int id, RuntimeFrame frame);
     public bool TryConsume(int id, RuntimeFrame frame, long durationFrames);
+    public bool Remove(int id);
+    public int CleanupExpired(RuntimeFrame frame);
+    public CooldownTrackerSnapshot CreateSnapshot(RuntimeFrame frame, bool includeExpired = false);
 }
 ```
 
 用途：Ability cooldown、交互冷却、UI 按钮冷却、音效播放限频、Combat attack interval、AI 决策间隔。
 
-规则：基于 `RuntimeFrame`，不读取 `Time.time`。
+规则：基于 `RuntimeFrame`，不读取 `Time.time`；一次性 id 较多时调用 `CleanupExpired` 显式清理过期条目。
 
 ### DirtyFlag / VersionedValue
 
@@ -89,7 +92,7 @@ public interface IRuntimeOperation
 
 ### RateLimiter / Debouncer
 
-用途：输入、日志、按钮、调试刷新限频。应支持 frame-based 和 explicit seconds-based 两种模式，不读取 Unity time。
+用途：输入、日志、按钮、调试刷新限频。应支持 frame-based 和 explicit seconds-based 两种模式，不读取 Unity time；seconds 参数必须 finite 且非负，拒绝 NaN / Infinity / negative。
 
 ### RuntimeCommandRegistry
 
@@ -134,10 +137,10 @@ Assets/Scripts/MxFramework/Tests/Runtime/RuntimeCommandRegistryTests.cs
 
 ## 2026-05-11 实现记录
 
-- 已实现 `CooldownTracker`、`CooldownTrackerSnapshot` 和 `CooldownSnapshotEntry`，使用 `RuntimeFrame`，不读取 Unity time。
+- 已实现 `CooldownTracker`、`CooldownTrackerSnapshot` 和 `CooldownSnapshotEntry`，使用 `RuntimeFrame`，不读取 Unity time，并支持 `Remove`、`CleanupExpired` 和按当前帧过滤 snapshot。
 - 已实现 `VersionToken`、`DirtyFlag`、`VersionedValue<T>`。
 - 已实现 `RuntimeOperationStatus`、`RuntimeOperationError`、`IRuntimeOperation`、`RuntimeOperation`。
-- 已实现 `RuntimeRateLimiter` 和 `RuntimeDebouncer`，支持 frame 和显式 seconds 模式。
+- 已实现 `RuntimeRateLimiter` 和 `RuntimeDebouncer`，支持 frame 和显式 seconds 模式，并拒绝 NaN / Infinity / negative seconds。
 - 已实现 `RuntimeCommandDefinition`、`RuntimeCommandPayloadSchema`、`RuntimeCommandRegistry`、`RuntimeCommandRegistrySnapshot`、`RuntimeCommandRegistryValidator`。
 - 新增 Batch B 测试：`RuntimeCooldownTrackerTests.cs`、`RuntimeVersioningTests.cs`、`RuntimeOperationTests.cs`、`RuntimeRateLimiterTests.cs`、`RuntimeCommandRegistryTests.cs`。
 - 验证：A+B 临时源码级 `dotnet test` 通过，`0` 失败、`109` 通过。Unity EditMode / 生成的 `.csproj` 需要 Unity 刷新新文件后再跑。

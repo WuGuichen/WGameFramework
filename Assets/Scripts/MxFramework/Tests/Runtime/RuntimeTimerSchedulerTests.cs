@@ -134,7 +134,7 @@ namespace MxFramework.Tests.Runtime
         }
 
         [Test]
-        public void ScheduleCommand_EnqueuesCommandWithDueFrameAndPreservedPayload()
+        public void ScheduleCommand_DefaultsToNextFrameAndPreservesPayload()
         {
             var scheduler = new RuntimeTimerScheduler();
             var buffer = new RuntimeCommandBuffer();
@@ -156,9 +156,9 @@ namespace MxFramework.Tests.Runtime
             Tick(scheduler, 2);
             Assert.AreEqual(1, buffer.PendingCount);
 
-            IReadOnlyList<RuntimeCommand> drained = buffer.DrainForFrame(new RuntimeFrame(2));
+            IReadOnlyList<RuntimeCommand> drained = buffer.DrainForFrame(new RuntimeFrame(3));
             Assert.AreEqual(1, drained.Count);
-            Assert.AreEqual(new RuntimeFrame(2), drained[0].Frame);
+            Assert.AreEqual(new RuntimeFrame(3), drained[0].Frame);
             Assert.AreEqual(7, drained[0].SourceId);
             Assert.AreEqual(9, drained[0].CommandId);
             Assert.AreEqual(11, drained[0].TargetId);
@@ -166,6 +166,39 @@ namespace MxFramework.Tests.Runtime
             Assert.AreEqual(15, drained[0].Payload1);
             Assert.AreEqual(17, drained[0].Payload2);
             Assert.AreEqual("command-trace", drained[0].TraceId);
+        }
+
+        [Test]
+        public void ScheduleCommand_DueFramePolicyCanTargetDueFrame()
+        {
+            var scheduler = new RuntimeTimerScheduler();
+            var buffer = new RuntimeCommandBuffer();
+            var command = new RuntimeCommand(RuntimeFrame.Zero, sourceId: 1, commandId: 2, targetId: 3);
+
+            scheduler.ScheduleCommand(2, buffer, command, "timer-trace", RuntimeScheduledCommandFramePolicy.DueFrame);
+
+            Tick(scheduler, 2);
+
+            IReadOnlyList<RuntimeCommand> drained = buffer.DrainForFrame(new RuntimeFrame(2));
+            Assert.AreEqual(1, drained.Count);
+            Assert.AreEqual(new RuntimeFrame(2), drained[0].Frame);
+        }
+
+        [Test]
+        public void ScheduleCommand_NextFramePolicyAvoidsLateCommandWhenDueFrameWasAlreadyDrained()
+        {
+            var scheduler = new RuntimeTimerScheduler();
+            var buffer = new RuntimeCommandBuffer();
+            var command = new RuntimeCommand(RuntimeFrame.Zero, sourceId: 1, commandId: 2, targetId: 3);
+
+            scheduler.ScheduleCommand(2, buffer, command, "timer-trace");
+
+            buffer.DrainForFrame(new RuntimeFrame(2));
+            Assert.DoesNotThrow(() => Tick(scheduler, 2));
+
+            IReadOnlyList<RuntimeCommand> drained = buffer.DrainForFrame(new RuntimeFrame(3));
+            Assert.AreEqual(1, drained.Count);
+            Assert.AreEqual(new RuntimeFrame(3), drained[0].Frame);
         }
 
         [Test]
@@ -192,8 +225,20 @@ namespace MxFramework.Tests.Runtime
 
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleFrames(-1, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleSeconds(-0.1d, _ => { }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleSeconds(double.NaN, _ => { }));
+            Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleSeconds(double.PositiveInfinity, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleRepeatingFrames(-1, _ => { }));
             Assert.Throws<ArgumentOutOfRangeException>(() => scheduler.ScheduleCommand(-1, buffer, new RuntimeCommand(RuntimeFrame.Zero, 1, 1, 1)));
+        }
+
+        [Test]
+        public void Tick_RejectsInvalidDeltaTime()
+        {
+            var scheduler = new RuntimeTimerScheduler();
+
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tick(scheduler, 0, -0.01d));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tick(scheduler, 0, double.NaN));
+            Assert.Throws<ArgumentOutOfRangeException>(() => Tick(scheduler, 0, double.PositiveInfinity));
         }
 
         [Test]

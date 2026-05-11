@@ -106,6 +106,8 @@ namespace MxFramework.Tests.Runtime
             Assert.Throws<ArgumentOutOfRangeException>(() => limiter.AllowSeconds(10, -0.1d, 0.1d));
             Assert.Throws<ArgumentOutOfRangeException>(() => limiter.AllowSeconds(10, double.NaN, 0.1d));
             Assert.Throws<ArgumentOutOfRangeException>(() => limiter.AllowSeconds(10, 0d, double.NaN));
+            Assert.Throws<ArgumentOutOfRangeException>(() => limiter.AllowSeconds(10, double.PositiveInfinity, 0.1d));
+            Assert.Throws<ArgumentOutOfRangeException>(() => limiter.AllowSeconds(10, 0d, double.PositiveInfinity));
         }
 
         [Test]
@@ -179,8 +181,10 @@ namespace MxFramework.Tests.Runtime
 
             Assert.Throws<ArgumentOutOfRangeException>(() => debouncer.MarkSeconds(10, -0.1d));
             Assert.Throws<ArgumentOutOfRangeException>(() => debouncer.MarkSeconds(10, double.NaN));
+            Assert.Throws<ArgumentOutOfRangeException>(() => debouncer.MarkSeconds(10, double.PositiveInfinity));
             Assert.Throws<ArgumentOutOfRangeException>(() => debouncer.IsReadySeconds(10, 0d, -0.1d));
             Assert.Throws<ArgumentOutOfRangeException>(() => debouncer.ConsumeReadySeconds(10, 0d, double.NaN));
+            Assert.Throws<ArgumentOutOfRangeException>(() => debouncer.ConsumeReadySeconds(10, 0d, double.PositiveInfinity));
         }
     }
 }

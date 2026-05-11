@@ -96,7 +96,7 @@ public sealed class RuntimeContextMap
 
 - 已实现 `RuntimeStateMachine<TState>` 和 `RuntimeStateTransitionPredicate<TState>`，作为局部状态机，不依赖 AppFlow / SceneFlow。
 - 已实现 `ContextKey<T>` 和 `RuntimeContextMap`，以 typed key 访问上下文，并提供 snapshot summary。
-- 已实现 `RuntimeEasing`、`RuntimeEasingFunctions`、`RuntimeFloatInterpolator`、`RuntimeTween`，全部使用显式 delta，不引用 UnityEngine。
+- 已实现 `RuntimeEasing`、`RuntimeEasingFunctions`、`RuntimeFloatInterpolator`、`RuntimeTween`，全部使用显式 delta，不引用 UnityEngine；Tween / interpolation 只用于 view、UI、diagnostics presentation，不进入 replay/hash 权威状态，除非调用方把结果记录为确定性输入。
 - 已实现 `RuntimeSnapshotValue`、`RuntimeChangeKind`、`RuntimeChange`、`RuntimeChangeSet`、`RuntimeSnapshotDiff`，支持简单 key/value diff。
 - 新增 Batch C 测试：`RuntimeStateMachineTests.cs`、`RuntimeContextMapTests.cs`、`RuntimeInterpolationTests.cs`、`RuntimeSnapshotDiffTests.cs`。
 - 验证：A+B+C 临时源码级 `dotnet test` 通过，`0` 失败、`139` 通过。Unity EditMode / 生成的 `.csproj` 需要 Unity 刷新新文件后再跑。

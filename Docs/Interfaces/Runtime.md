@@ -76,8 +76,9 @@ Runtime 提供框架级运行时组合根和生命周期调度。它不承载业
 | `RuntimeTimerHandle` | 基于 `StableHandle` 的 timer handle，防止 stale cancel |
 | `RuntimeTimerCallback` / `RuntimeTimerContext` | Timer callback 模式上下文 |
 | `RuntimeTimerSchedulerSnapshot` / `RuntimeTimerSnapshotEntry` | Pending timer 诊断快照 |
-| `RuntimeTimerSchedulerState` / `RuntimeTimerState` | SaveState-friendly timer 摘要 |
-| `CooldownTracker` / `CooldownTrackerSnapshot` | 基于 `RuntimeFrame` 的冷却跟踪和诊断 |
+| `RuntimeTimerSchedulerStateSummary` / `RuntimeTimerStateSummary` | Timer 诊断摘要；不可直接恢复，真实 SaveState 需要 resolver 和完整 command/callback payload |
+| `RuntimeTimerSchedulerState` / `RuntimeTimerState` | 兼容别名，语义同 summary |
+| `CooldownTracker` / `CooldownTrackerSnapshot` | 基于 `RuntimeFrame` 的冷却跟踪、过期清理和诊断 |
 | `VersionToken` | 简单版本 token |
 | `DirtyFlag` | dirty 标记和版本递增工具 |
 | `VersionedValue<T>` | 值变化时递增版本的包装 |
@@ -95,7 +96,7 @@ Runtime 提供框架级运行时组合根和生命周期调度。它不承载业
 | `RuntimeContextMap` / `RuntimeContextMapSnapshot` | typed blackboard / context map 和诊断摘要 |
 | `RuntimeEasing` / `RuntimeEasingFunctions` | 表现层 easing 工具 |
 | `RuntimeFloatInterpolator` | noEngine float 插值工具 |
-| `RuntimeTween` | 显式 delta 驱动的 presentation tween |
+| `RuntimeTween` | 显式 delta 驱动的 presentation tween；只用于 view、UI、diagnostics 表现，不进入 replay/hash 权威状态，除非调用方把结果记录为确定性输入 |
 | `RuntimeSnapshotValue` | 简单 key/value snapshot 项 |
 | `RuntimeChangeKind` / `RuntimeChange` / `RuntimeChangeSet` | Snapshot diff change set |
 | `RuntimeSnapshotDiff` | 简单 key/value snapshot diff |

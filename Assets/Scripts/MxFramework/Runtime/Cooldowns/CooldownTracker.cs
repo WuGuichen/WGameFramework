@@ -42,6 +42,35 @@ namespace MxFramework.Runtime
             return true;
         }
 
+        public bool Remove(int id)
+        {
+            return _endFrames.Remove(id);
+        }
+
+        public int CleanupExpired(RuntimeFrame frame)
+        {
+            if (_endFrames.Count == 0)
+            {
+                return 0;
+            }
+
+            var expiredIds = new List<int>();
+            foreach (KeyValuePair<int, long> pair in _endFrames)
+            {
+                if (frame.Value >= pair.Value)
+                {
+                    expiredIds.Add(pair.Key);
+                }
+            }
+
+            for (int i = 0; i < expiredIds.Count; i++)
+            {
+                _endFrames.Remove(expiredIds[i]);
+            }
+
+            return expiredIds.Count;
+        }
+
         public void Clear()
         {
             _endFrames.Clear();
@@ -62,6 +91,31 @@ namespace MxFramework.Runtime
             }
 
             Array.Sort(entries, CompareEntries);
+            return new CooldownTrackerSnapshot(entries);
+        }
+
+        public CooldownTrackerSnapshot CreateSnapshot(RuntimeFrame frame, bool includeExpired = false)
+        {
+            if (_endFrames.Count == 0)
+            {
+                return CooldownTrackerSnapshot.Empty;
+            }
+
+            var entries = new List<CooldownSnapshotEntry>(_endFrames.Count);
+            foreach (KeyValuePair<int, long> pair in _endFrames)
+            {
+                if (includeExpired || frame.Value < pair.Value)
+                {
+                    entries.Add(new CooldownSnapshotEntry(pair.Key, new RuntimeFrame(pair.Value)));
+                }
+            }
+
+            if (entries.Count == 0)
+            {
+                return CooldownTrackerSnapshot.Empty;
+            }
+
+            entries.Sort(CompareEntries);
             return new CooldownTrackerSnapshot(entries);
         }
 

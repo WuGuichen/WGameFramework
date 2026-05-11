@@ -99,6 +99,50 @@ namespace MxFramework.Tests.Runtime
         }
 
         [Test]
+        public void Remove_DeletesSingleCooldown()
+        {
+            var cooldowns = new CooldownTracker();
+            cooldowns.Start(10, RuntimeFrame.Zero, 3);
+            cooldowns.Start(20, RuntimeFrame.Zero, 3);
+
+            Assert.IsTrue(cooldowns.Remove(10));
+            Assert.IsFalse(cooldowns.Remove(10));
+
+            Assert.IsTrue(cooldowns.IsReady(10, RuntimeFrame.Zero));
+            Assert.IsFalse(cooldowns.IsReady(20, RuntimeFrame.Zero));
+        }
+
+        [Test]
+        public void CleanupExpired_RemovesExpiredCooldowns()
+        {
+            var cooldowns = new CooldownTracker();
+            cooldowns.Start(10, RuntimeFrame.Zero, 2);
+            cooldowns.Start(20, RuntimeFrame.Zero, 4);
+            cooldowns.Start(30, RuntimeFrame.Zero, 6);
+
+            Assert.AreEqual(2, cooldowns.CleanupExpired(new RuntimeFrame(4)));
+
+            CooldownTrackerSnapshot snapshot = cooldowns.CreateSnapshot();
+            Assert.AreEqual(1, snapshot.Entries.Count);
+            Assert.AreEqual(30, snapshot.Entries[0].Id);
+        }
+
+        [Test]
+        public void CreateSnapshotWithFrame_ExcludesExpiredByDefault()
+        {
+            var cooldowns = new CooldownTracker();
+            cooldowns.Start(10, RuntimeFrame.Zero, 2);
+            cooldowns.Start(20, RuntimeFrame.Zero, 4);
+
+            CooldownTrackerSnapshot active = cooldowns.CreateSnapshot(new RuntimeFrame(2));
+            CooldownTrackerSnapshot all = cooldowns.CreateSnapshot(new RuntimeFrame(2), includeExpired: true);
+
+            Assert.AreEqual(1, active.Entries.Count);
+            Assert.AreEqual(20, active.Entries[0].Id);
+            Assert.AreEqual(2, all.Entries.Count);
+        }
+
+        [Test]
         public void CreateSnapshot_ReturnsSortedEndFrames()
         {
             var cooldowns = new CooldownTracker();

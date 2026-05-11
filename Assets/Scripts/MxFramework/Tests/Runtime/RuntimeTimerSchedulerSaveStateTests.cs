@@ -43,7 +43,7 @@ namespace MxFramework.Tests.Runtime
         }
 
         [Test]
-        public void CreateState_ExposesSaveStateFriendlyTimerSummaries()
+        public void CreateStateSummary_ExposesDiagnosticTimerSummaries()
         {
             var scheduler = new RuntimeTimerScheduler();
             var buffer = new RuntimeCommandBuffer();
@@ -63,9 +63,10 @@ namespace MxFramework.Tests.Runtime
 
             Tick(scheduler, 1, 0.5d);
 
-            RuntimeTimerSchedulerState state = scheduler.CreateState();
+            RuntimeTimerSchedulerStateSummary state = scheduler.CreateStateSummary();
 
             Assert.AreEqual(RuntimeTimerScheduler.StateSchemaVersion, state.SchemaVersion);
+            Assert.IsFalse(state.IsRestorable);
             Assert.AreEqual(1, state.CurrentFrame);
             Assert.AreEqual(3, state.Timers.Count);
             Assert.GreaterOrEqual(state.NextTimerId, 3);
@@ -80,9 +81,21 @@ namespace MxFramework.Tests.Runtime
 
             Assert.AreEqual("command-timer", state.Timers[2].TraceId);
             Assert.AreEqual(RuntimeTimerKind.Command, state.Timers[2].Kind);
-            StringAssert.Contains("Frame=6", state.Timers[2].CommandSummary);
+            Assert.IsFalse(state.Timers[2].IsRestorable);
+            StringAssert.Contains("Frame=7", state.Timers[2].CommandSummary);
             StringAssert.Contains("CommandId=2", state.Timers[2].CommandSummary);
             StringAssert.Contains("TraceId=command-trace", state.Timers[2].CommandSummary);
+        }
+
+        [Test]
+        public void CreateState_ReturnsBackwardCompatibleSummaryAlias()
+        {
+            var scheduler = new RuntimeTimerScheduler();
+
+            RuntimeTimerSchedulerState state = scheduler.CreateState();
+
+            Assert.IsFalse(state.IsRestorable);
+            Assert.AreEqual(0, state.Timers.Count);
         }
 
         private static RuntimeTimerSnapshotEntry Find(RuntimeTimerSchedulerSnapshot snapshot, RuntimeTimerHandle handle)

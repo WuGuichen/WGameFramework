@@ -7,9 +7,21 @@ namespace MxFramework.Runtime
         RuntimeTimerHandle ScheduleFrames(long delayFrames, RuntimeTimerCallback callback, string traceId = "");
         RuntimeTimerHandle ScheduleSeconds(double delaySeconds, RuntimeTimerCallback callback, string traceId = "");
         RuntimeTimerHandle ScheduleRepeatingFrames(long intervalFrames, RuntimeTimerCallback callback, string traceId = "");
-        RuntimeTimerHandle ScheduleCommand(long frameDelay, RuntimeCommandBuffer commandBuffer, RuntimeCommand command, string traceId = "");
+        RuntimeTimerHandle ScheduleCommand(
+            long frameDelay,
+            RuntimeCommandBuffer commandBuffer,
+            RuntimeCommand command,
+            string traceId = "",
+            RuntimeScheduledCommandFramePolicy framePolicy = RuntimeScheduledCommandFramePolicy.NextFrame);
         bool Cancel(RuntimeTimerHandle handle);
         RuntimeTimerSchedulerSnapshot CreateSnapshot();
+    }
+
+    public enum RuntimeScheduledCommandFramePolicy
+    {
+        DueFrame = 0,
+        NextFrame = 1,
+        PreserveOriginalFrame = 2
     }
 
     public readonly struct RuntimeTimerContext

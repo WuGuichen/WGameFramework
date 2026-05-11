@@ -3,35 +3,49 @@ using System.Collections.ObjectModel;
 
 namespace MxFramework.Runtime
 {
-    public sealed class RuntimeTimerSchedulerState
+    public class RuntimeTimerSchedulerStateSummary
     {
-        private readonly ReadOnlyCollection<RuntimeTimerState> _timers;
+        private readonly ReadOnlyCollection<RuntimeTimerStateSummary> _timers;
 
-        public RuntimeTimerSchedulerState(
+        public RuntimeTimerSchedulerStateSummary(
             int schemaVersion,
             long currentFrame,
             long nextTimerId,
             long nextSequence,
-            IReadOnlyList<RuntimeTimerState> timers)
+            IReadOnlyList<RuntimeTimerStateSummary> timers)
         {
             SchemaVersion = schemaVersion;
             CurrentFrame = currentFrame;
             NextTimerId = nextTimerId;
             NextSequence = nextSequence;
-            _timers = new ReadOnlyCollection<RuntimeTimerState>(
-                timers != null ? new List<RuntimeTimerState>(timers) : new List<RuntimeTimerState>());
+            _timers = new ReadOnlyCollection<RuntimeTimerStateSummary>(
+                timers != null ? new List<RuntimeTimerStateSummary>(timers) : new List<RuntimeTimerStateSummary>());
         }
 
         public int SchemaVersion { get; }
         public long CurrentFrame { get; }
         public long NextTimerId { get; }
         public long NextSequence { get; }
-        public IReadOnlyList<RuntimeTimerState> Timers => _timers;
+        public IReadOnlyList<RuntimeTimerStateSummary> Timers => _timers;
+        public bool IsRestorable => false;
     }
 
-    public sealed class RuntimeTimerState
+    public sealed class RuntimeTimerSchedulerState : RuntimeTimerSchedulerStateSummary
     {
-        public RuntimeTimerState(
+        public RuntimeTimerSchedulerState(
+            int schemaVersion,
+            long currentFrame,
+            long nextTimerId,
+            long nextSequence,
+            IReadOnlyList<RuntimeTimerStateSummary> timers)
+            : base(schemaVersion, currentFrame, nextTimerId, nextSequence, timers)
+        {
+        }
+    }
+
+    public class RuntimeTimerStateSummary
+    {
+        public RuntimeTimerStateSummary(
             long timerId,
             long sequence,
             RuntimeTimerKind kind,
@@ -71,5 +85,38 @@ namespace MxFramework.Runtime
         public bool IsRepeating { get; }
         public string TraceId { get; }
         public string CommandSummary { get; }
+        public bool IsRestorable => false;
+    }
+
+    public sealed class RuntimeTimerState : RuntimeTimerStateSummary
+    {
+        public RuntimeTimerState(
+            long timerId,
+            long sequence,
+            RuntimeTimerKind kind,
+            RuntimeTimerHandle handle,
+            long targetFrame,
+            long remainingFrames,
+            double remainingSeconds,
+            long intervalFrames,
+            double intervalSeconds,
+            bool isRepeating,
+            string traceId,
+            string commandSummary)
+            : base(
+                timerId,
+                sequence,
+                kind,
+                handle,
+                targetFrame,
+                remainingFrames,
+                remainingSeconds,
+                intervalFrames,
+                intervalSeconds,
+                isRepeating,
+                traceId,
+                commandSummary)
+        {
+        }
     }
 }

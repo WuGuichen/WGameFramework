@@ -57,10 +57,7 @@ namespace MxFramework.Runtime
 
         public RuntimeTimerHandle ScheduleSeconds(double delaySeconds, RuntimeTimerCallback callback, string traceId = "")
         {
-            if (delaySeconds < 0d)
-            {
-                throw new ArgumentOutOfRangeException(nameof(delaySeconds), "Runtime timer seconds delay cannot be negative.");
-            }
+            ValidateFiniteNonNegativeSeconds(delaySeconds, nameof(delaySeconds));
 
             if (callback == null)
             {
@@ -113,7 +110,8 @@ namespace MxFramework.Runtime
             long frameDelay,
             RuntimeCommandBuffer commandBuffer,
             RuntimeCommand command,
-            string traceId = "")
+            string traceId = "",
+            RuntimeScheduledCommandFramePolicy framePolicy = RuntimeScheduledCommandFramePolicy.NextFrame)
         {
             if (frameDelay < 0L)
             {
@@ -126,8 +124,9 @@ namespace MxFramework.Runtime
             }
 
             RuntimeFrame targetFrame = AddFrames(_currentFrame.Value, frameDelay);
+            RuntimeFrame commandFrame = ResolveCommandFrame(command.Frame, targetFrame, framePolicy);
             RuntimeCommand scheduledCommand = new RuntimeCommand(
-                targetFrame,
+                commandFrame,
                 command.SourceId,
                 command.CommandId,
                 command.TargetId,
@@ -165,6 +164,8 @@ namespace MxFramework.Runtime
 
         public override void Tick(RuntimeTickContext context)
         {
+            ValidateFiniteNonNegativeSeconds(context.DeltaTime, nameof(context.DeltaTime));
+
             _currentFrame = new RuntimeFrame(context.FrameIndex);
 
             CollectDueTimers(context);
@@ -199,7 +200,18 @@ namespace MxFramework.Runtime
 
         public RuntimeTimerSchedulerState CreateState()
         {
-            var states = new List<RuntimeTimerState>();
+            RuntimeTimerSchedulerStateSummary summary = CreateStateSummary();
+            return new RuntimeTimerSchedulerState(
+                summary.SchemaVersion,
+                summary.CurrentFrame,
+                summary.NextTimerId,
+                summary.NextSequence,
+                summary.Timers);
+        }
+
+        public RuntimeTimerSchedulerStateSummary CreateStateSummary()
+        {
+            var states = new List<RuntimeTimerStateSummary>();
             for (int i = 0; i < _timers.Count; i++)
             {
                 TimerRecord timer = _timers[i];
@@ -208,7 +220,7 @@ namespace MxFramework.Runtime
                     continue;
                 }
 
-                states.Add(new RuntimeTimerState(
+                states.Add(new RuntimeTimerStateSummary(
                     timer.TimerId,
                     timer.Sequence,
                     timer.Kind,
@@ -224,7 +236,7 @@ namespace MxFramework.Runtime
             }
 
             states.Sort(CompareStates);
-            return new RuntimeTimerSchedulerState(StateSchemaVersion, _currentFrame.Value, _nextTimerId, _nextSequence, states);
+            return new RuntimeTimerSchedulerStateSummary(StateSchemaVersion, _currentFrame.Value, _nextTimerId, _nextSequence, states);
         }
 
         private RuntimeTimerHandle AddTimer(TimerRecord record)
@@ -390,7 +402,7 @@ namespace MxFramework.Runtime
             return left.Handle.Generation.CompareTo(right.Handle.Generation);
         }
 
-        private static int CompareStates(RuntimeTimerState left, RuntimeTimerState right)
+        private static int CompareStates(RuntimeTimerStateSummary left, RuntimeTimerStateSummary right)
         {
             int frame = left.TargetFrame.CompareTo(right.TargetFrame);
             if (frame != 0)
@@ -420,6 +432,32 @@ namespace MxFramework.Runtime
                 + " CommandId=" + command.CommandId
                 + " TargetId=" + command.TargetId
                 + " TraceId=" + command.TraceId;
+        }
+
+        private static RuntimeFrame ResolveCommandFrame(
+            RuntimeFrame originalFrame,
+            RuntimeFrame targetFrame,
+            RuntimeScheduledCommandFramePolicy framePolicy)
+        {
+            switch (framePolicy)
+            {
+                case RuntimeScheduledCommandFramePolicy.DueFrame:
+                    return targetFrame;
+                case RuntimeScheduledCommandFramePolicy.NextFrame:
+                    return targetFrame.Next();
+                case RuntimeScheduledCommandFramePolicy.PreserveOriginalFrame:
+                    return originalFrame;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(framePolicy), framePolicy, "Unsupported scheduled command frame policy.");
+            }
+        }
+
+        private static void ValidateFiniteNonNegativeSeconds(double value, string parameterName)
+        {
+            if (double.IsNaN(value) || double.IsInfinity(value) || value < 0d)
+            {
+                throw new ArgumentOutOfRangeException(parameterName, value, "Seconds value must be finite and non-negative.");
+            }
         }
 
         private sealed class TimerRecord

@@ -2,6 +2,10 @@ using System;
 
 namespace MxFramework.Runtime
 {
+    /// <summary>
+    /// Presentation-only tween helper for view, UI, and diagnostics. Do not feed tween output into replay/hash authoritative runtime state
+    /// unless the caller records the result as deterministic input.
+    /// </summary>
     public struct RuntimeTween
     {
         public RuntimeTween(float from, float to, float duration)
