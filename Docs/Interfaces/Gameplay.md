@@ -53,6 +53,7 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplaySystemPipeline` | 稳定 system 调度管线，不拥有 `RuntimeCommandBuffer` drain 权限 |
 | `GameplayAbilityCommandSystem` | 处理 `CastAbility` command，调用 Ability runtime adapter 并输出 runtime event |
 | `GameplayEntityLifecycleCommandSystem` | 处理 `DespawnEntity` command |
+| `GameplayComponentEntityCommandSystem` | 处理 component runtime 的 `CreateComponentEntity` / `DestroyComponentEntity` command |
 | `GameplayUnsupportedCommandSystem` | 拒绝 default pipeline 中未识别的 Gameplay command id |
 | `ITargetSelector` | 从候选目标中选择技能目标 |
 | `GameplayTargetCandidate` | 可目标选择的实体快照，包含 entity/team/alive/tag/status |
@@ -219,6 +220,9 @@ Gameplay command systems v0：
 
 - `GameplayAbilityCommandSystem` 处理 `GameplayRuntimeCommandIds.CastAbility`，复用 `GameplayAbilityRuntimeService`，输出 `AbilityCastSucceeded` / `AbilityCastFailed` event，并标记 command handled。
 - `GameplayEntityLifecycleCommandSystem` 处理 `GameplayRuntimeCommandIds.DespawnEntity`，移除 `GameplayWorld` v0 entity 并输出 `EntityDespawned` / `CommandRejected` event，并标记 command handled。
+- `GameplayComponentEntityCommandSystem` 处理 `CreateComponentEntity` / `DestroyComponentEntity`，读写 `GameplayComponentWorld` generation entity，并输出 `ComponentEntityCreated` / `ComponentEntityDestroyed` / `CommandRejected` event。
+- `DestroyComponentEntity` command 使用 `payload0=index`、`payload1=generation`，拒绝 stale / invalid id，避免误删复用后的新 entity。
+- `GameplayRuntimeEvent.ComponentEntityId` 是 component runtime 的 generation-safe event id；旧 `TargetEntityId` 仍服务 v0 `RuntimeEntity` / Ability 事件。
 - `GameplayUnsupportedCommandSystem` 在 default pipeline 中拒绝未 handled command，reason 为 `UnsupportedGameplayCommand`；它不维护硬编码 command id 白名单。
 - `GameplayRuntimeModule.AbilityResults` 由 ability command system 的 result sink 写入，仍只保留最近 N 条诊断结果。
 

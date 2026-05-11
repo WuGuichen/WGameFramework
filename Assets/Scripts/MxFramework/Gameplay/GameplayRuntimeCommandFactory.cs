@@ -37,5 +37,34 @@ namespace MxFramework.Gameplay
                 payload0: entityId,
                 traceId: traceId);
         }
+
+        public static RuntimeCommand CreateComponentEntity(
+            RuntimeFrame frame,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.CreateComponentEntity,
+                targetId: 0,
+                traceId: traceId);
+        }
+
+        public static RuntimeCommand DestroyComponentEntity(
+            RuntimeFrame frame,
+            GameplayEntityId entityId,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.DestroyComponentEntity,
+                targetId: entityId.Index,
+                payload0: entityId.Index,
+                payload1: entityId.Generation,
+                traceId: traceId);
+        }
     }
 }

@@ -4,5 +4,7 @@ namespace MxFramework.Gameplay
     {
         public const int CastAbility = 1001001;
         public const int DespawnEntity = 1001002;
+        public const int CreateComponentEntity = 1001003;
+        public const int DestroyComponentEntity = 1001004;
     }
 }

@@ -103,6 +103,7 @@
 | `Tasks/GAMEPLAY_ECS_STYLE_04_CORE_COMPONENTS.md` | Gameplay ECS-style 04：新增 Identity、Team、Lifecycle、Tag、Status 纯数据组件和 registry GetOrCreateStore 入口。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_05_COMPONENT_QUERY.md` | Gameplay ECS-style 05：新增稳定 component query helper，支持单组件查询和双组件 join，避免 system 直接依赖 store 内部结构。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_06_COMPONENT_WORLD.md` | Gameplay ECS-style 06：新增 GameplayComponentWorld 组合根，聚合 component registry 和 runtime event queue，并接入 GameplaySystemContext。 |
+| `Tasks/GAMEPLAY_ECS_STYLE_07_ENTITY_COMMANDS.md` | Gameplay ECS-style 07：新增 component runtime create/destroy entity commands，使用 generation id 防 stale destroy，并输出 component entity runtime events。 |
 | `Tasks/GAMEPLAY_ABILITY_03_COMMAND_SYSTEM.md` | Gameplay Ability 03：将 CastAbility / DespawnEntity 迁入 command systems，让 GameplayRuntimeModule 只负责 drain、pipeline、event queue 和 world tick。 |
 | `Tasks/GAMEPLAY_ABILITY_04_COMMAND_HANDLED_STATE.md` | Gameplay Ability 04：新增 command handled 状态，让 unsupported system 基于 handled 判断，支持 default pipeline 上扩展自定义 command system。 |
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |

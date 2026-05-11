@@ -160,6 +160,7 @@ namespace MxFramework.Gameplay
             var pipeline = new GameplaySystemPipeline();
             pipeline.Add(new GameplayAbilityCommandSystem(abilityRegistry, resultSink));
             pipeline.Add(new GameplayEntityLifecycleCommandSystem());
+            pipeline.Add(new GameplayComponentEntityCommandSystem());
             pipeline.Add(new GameplayUnsupportedCommandSystem());
             return pipeline;
         }

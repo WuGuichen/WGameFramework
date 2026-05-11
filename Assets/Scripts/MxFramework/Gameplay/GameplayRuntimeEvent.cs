@@ -9,7 +9,9 @@ namespace MxFramework.Gameplay
         AbilityCastFailed = 2,
         EntityDespawned = 3,
         CommandRejected = 4,
-        WorldTicked = 5
+        WorldTicked = 5,
+        ComponentEntityCreated = 6,
+        ComponentEntityDestroyed = 7
     }
 
     public readonly struct GameplayRuntimeEvent
@@ -23,7 +25,9 @@ namespace MxFramework.Gameplay
             int targetEntityId,
             GameplayAbilityRuntimeFailureCode failureCode,
             string reason,
-            string traceId)
+            string traceId,
+            int componentEntityIndex = 0,
+            int componentEntityGeneration = 0)
         {
             Frame = frame;
             Type = type;
@@ -34,6 +38,8 @@ namespace MxFramework.Gameplay
             FailureCode = failureCode;
             Reason = reason ?? string.Empty;
             TraceId = traceId ?? string.Empty;
+            ComponentEntityIndex = componentEntityIndex;
+            ComponentEntityGeneration = componentEntityGeneration;
         }
 
         public RuntimeFrame Frame { get; }
@@ -45,5 +51,8 @@ namespace MxFramework.Gameplay
         public GameplayAbilityRuntimeFailureCode FailureCode { get; }
         public string Reason { get; }
         public string TraceId { get; }
+        public int ComponentEntityIndex { get; }
+        public int ComponentEntityGeneration { get; }
+        public GameplayEntityId ComponentEntityId => new GameplayEntityId(ComponentEntityIndex, ComponentEntityGeneration);
     }
 }
