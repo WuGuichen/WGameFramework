@@ -562,7 +562,7 @@ Unity Editor Window `MxFramework > Framework Manager`：
 mcp_servers:
   gitnexus:
     command: gitnexus
-    args: ["mcp", "--repo", "/Users/vincent/Documents/WGameFramework"]
+    args: ["mcp", "--repo", "${WGAMEFRAMEWORK_ROOT}"]
 ```
 
 ---

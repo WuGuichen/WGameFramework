@@ -392,7 +392,7 @@ Assets/Scripts/MxFramework/Tests/Combat/Physics/
 派发给任何子代理时，必须附带：
 
 ```text
-你在 /Users/vincent/Documents/WGameFramework 工作。
+你在 WGameFramework 工程根目录工作。
 SVN 是主版本控制，不要使用 git 提交。
 不要回退他人改动。
 遵守 AGENTS.md。

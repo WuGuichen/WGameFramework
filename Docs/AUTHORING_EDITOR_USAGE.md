@@ -31,7 +31,7 @@ http://127.0.0.1:4873/Tools/MxFramework.Authoring.Editor/web/
 如果服务没有启动，使用：
 
 ```bash
-dotnet run --no-build --project Tools/MxFramework.Authoring/src/MxFramework.Authoring.Cli/MxFramework.Authoring.Cli.csproj -- editor serve --root /Users/vincent/Documents/WGameFramework --port 4873
+dotnet run --no-build --project Tools/MxFramework.Authoring/src/MxFramework.Authoring.Cli/MxFramework.Authoring.Cli.csproj -- editor serve --root "$WGAMEFRAMEWORK_ROOT" --port 4873
 ```
 
 ### Unity 预览服务
