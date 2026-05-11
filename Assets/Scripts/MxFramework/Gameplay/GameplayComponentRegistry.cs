@@ -50,6 +50,27 @@ namespace MxFramework.Gameplay
             return _lifecycle.CreateSnapshot();
         }
 
+        public int CopyStoreDiagnostics(List<GameplayComponentStoreDiagnosticSnapshot> output)
+        {
+            if (output == null)
+                throw new ArgumentNullException(nameof(output));
+
+            var snapshots = new GameplayComponentStoreDiagnosticSnapshot[_stores.Count];
+            for (int i = 0; i < _stores.Count; i++)
+            {
+                IGameplayComponentStore store = _stores[i];
+                snapshots[i] = new GameplayComponentStoreDiagnosticSnapshot(
+                    store.ComponentType.FullName ?? store.ComponentType.Name,
+                    store.Count);
+            }
+
+            Array.Sort(snapshots, CompareStoreDiagnostics);
+            for (int i = 0; i < snapshots.Length; i++)
+                output.Add(snapshots[i]);
+
+            return snapshots.Length;
+        }
+
         public GameplayComponentStore<T> CreateStore<T>() where T : struct, IGameplayComponent
         {
             var store = new GameplayComponentStore<T>();
@@ -108,6 +129,13 @@ namespace MxFramework.Gameplay
 
             _storesByType.Add(componentType, store);
             _stores.Add(store);
+        }
+
+        private static int CompareStoreDiagnostics(
+            GameplayComponentStoreDiagnosticSnapshot left,
+            GameplayComponentStoreDiagnosticSnapshot right)
+        {
+            return string.CompareOrdinal(left.ComponentTypeName, right.ComponentTypeName);
         }
     }
 }

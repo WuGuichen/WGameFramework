@@ -42,6 +42,7 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayComponentRegistry` | 组合 `GameplayEntityLifecycle` 和 registered component stores，统一 destroy cleanup |
 | `GameplayComponentPair<TPrimary,TSecondary>` / `GameplayComponentQuery` | 稳定 component query helper，支持单组件拷贝和双组件 join |
 | `GameplayComponentWorld` / `GameplayComponentWorldSnapshot` | ECS-style component runtime 组合根，聚合 component registry 和 gameplay runtime event queue |
+| `GameplayComponentWorldDiagnostics` / `GameplayComponentWorldDiagnosticSnapshot` | Component runtime 诊断快照，稳定输出 alive entities、store 摘要和 pending event queue 概要 |
 | `GameplayIdentityComponent` | ECS-style component runtime 的配置身份数据 |
 | `GameplayTeamComponent` | ECS-style team 数据，复用 `GameplayTeamRelations` |
 | `GameplayLifecycleComponent` / `GameplayLifecycleState` | ECS-style lifecycle state 数据 |
@@ -191,6 +192,8 @@ Component store v0：
 - `GameplayComponentWorld` 是 component runtime 组合根，聚合 `GameplayComponentRegistry` 和 `RuntimeEventQueue<GameplayRuntimeEvent>`。
 - `GameplayComponentWorld.Clear()` 清空 component registry state 和 pending events，不处理旧 `GameplayWorld` / `RuntimeEntity`；只应用于 session reset / world reset。
 - `GameplayRuntimeModule.ComponentWorld` 默认存在；module 的 `Events` 与 `ComponentWorld.Events` 是同一个 queue。
+- `GameplayComponentWorldDiagnostics` 输出 component runtime 的结构摘要：alive entity ids、registered store type/count 和 event queue snapshot。
+- Store diagnostics 按 component type full name 稳定排序；当前不保存泛型 component value，不定义 SaveState / ReplayHash schema。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Core components v0：

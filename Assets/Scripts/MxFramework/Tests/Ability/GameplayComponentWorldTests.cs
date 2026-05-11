@@ -84,6 +84,63 @@ namespace MxFramework.Tests.Ability
             Assert.AreEqual(0, componentWorld.PendingEventCount);
         }
 
+        [Test]
+        public void DiagnosticSnapshot_CapturesEntitiesStoresAndPendingEventsInStableOrder()
+        {
+            var world = new GameplayComponentWorld();
+            GameplayComponentStore<TestFlagComponent> flags = world.CreateStore<TestFlagComponent>();
+            GameplayComponentStore<TestStatComponent> stats = world.CreateStore<TestStatComponent>();
+            GameplayEntityId first = world.CreateEntity();
+            GameplayEntityId second = world.CreateEntity();
+            flags.Set(second, new TestFlagComponent(true));
+            stats.Set(first, new TestStatComponent(10));
+            stats.Set(second, new TestStatComponent(20));
+            world.EnqueueEvent(new GameplayRuntimeEvent(
+                new RuntimeFrame(3),
+                GameplayRuntimeEventType.WorldTicked,
+                commandId: 0,
+                casterEntityId: 0,
+                abilityId: 0,
+                targetEntityId: 0,
+                failureCode: GameplayAbilityRuntimeFailureCode.None,
+                reason: string.Empty,
+                traceId: "pending"));
+
+            GameplayComponentWorldDiagnosticSnapshot snapshot = world.CreateDiagnosticSnapshot();
+
+            Assert.AreEqual(2, snapshot.AliveEntityCount);
+            Assert.AreEqual(first, snapshot.Entities[0]);
+            Assert.AreEqual(second, snapshot.Entities[1]);
+            Assert.AreEqual(2, snapshot.ComponentStoreCount);
+            Assert.Less(
+                string.CompareOrdinal(snapshot.Stores[0].ComponentTypeName, snapshot.Stores[1].ComponentTypeName),
+                0);
+            Assert.AreEqual(1, FindStore(snapshot, typeof(TestFlagComponent).FullName).ComponentCount);
+            Assert.AreEqual(2, FindStore(snapshot, typeof(TestStatComponent).FullName).ComponentCount);
+            Assert.AreEqual(1, snapshot.PendingEventCount);
+            Assert.AreEqual(new RuntimeFrame(3), snapshot.EventQueue.OldestFrame);
+            Assert.AreEqual(new RuntimeFrame(3), snapshot.EventQueue.NewestFrame);
+        }
+
+        [Test]
+        public void DiagnosticSnapshot_CopiesEntityAndStoreCollections()
+        {
+            var world = new GameplayComponentWorld();
+            GameplayComponentStore<TestStatComponent> stats = world.CreateStore<TestStatComponent>();
+            GameplayEntityId entity = world.CreateEntity();
+            stats.Set(entity, new TestStatComponent(10));
+
+            GameplayComponentWorldDiagnosticSnapshot snapshot = new GameplayComponentWorldDiagnostics().BuildSnapshot(world);
+
+            Assert.IsTrue(world.DestroyEntity(entity));
+            stats.Clear();
+
+            Assert.AreEqual(1, snapshot.AliveEntityCount);
+            Assert.AreEqual(entity, snapshot.Entities[0]);
+            Assert.AreEqual(1, snapshot.ComponentStoreCount);
+            Assert.AreEqual(1, snapshot.Stores[0].ComponentCount);
+        }
+
         private readonly struct TestStatComponent : IGameplayComponent
         {
             public TestStatComponent(int value)
@@ -92,6 +149,31 @@ namespace MxFramework.Tests.Ability
             }
 
             public int Value { get; }
+        }
+
+        private readonly struct TestFlagComponent : IGameplayComponent
+        {
+            public TestFlagComponent(bool value)
+            {
+                Value = value;
+            }
+
+            public bool Value { get; }
+        }
+
+        private static GameplayComponentStoreDiagnosticSnapshot FindStore(
+            GameplayComponentWorldDiagnosticSnapshot snapshot,
+            string componentTypeName)
+        {
+            for (int i = 0; i < snapshot.Stores.Count; i++)
+            {
+                GameplayComponentStoreDiagnosticSnapshot store = snapshot.Stores[i];
+                if (store.ComponentTypeName == componentTypeName)
+                    return store;
+            }
+
+            Assert.Fail("Missing component store diagnostic snapshot: " + componentTypeName);
+            return default;
         }
 
         private sealed class ComponentWorldRecordingSystem : IGameplaySystem

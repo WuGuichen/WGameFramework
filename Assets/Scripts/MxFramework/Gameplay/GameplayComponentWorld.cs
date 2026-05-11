@@ -78,6 +78,11 @@ namespace MxFramework.Gameplay
                 Events.PendingCount);
         }
 
+        public GameplayComponentWorldDiagnosticSnapshot CreateDiagnosticSnapshot()
+        {
+            return new GameplayComponentWorldDiagnostics().BuildSnapshot(this);
+        }
+
         public void Clear()
         {
             Registry.Clear();
