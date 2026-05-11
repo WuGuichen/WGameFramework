@@ -129,10 +129,12 @@ Runtime module / command loop：
 
 - `GameplayRuntimeModule` 可注册到 `RuntimeHost`，默认 `Simulation` stage、priority `100`，让 timer 等更早 priority 的模块先投递 command。
 - Module 每帧调用 `RuntimeCommandBuffer.DrainForFrame(frame)`，按 `RuntimeCommandBuffer` 的稳定排序执行 Gameplay command。
+- 一个 `RuntimeCommandBuffer` 应只有一个 drain owner。传给 `GameplayRuntimeModule` 的 command buffer 不应再被其他模块调用 `DrainForFrame`；Input、AI、Timer、SceneFlow 等模块可以 `Enqueue`，但不能消费这个 buffer。
 - v0 command 包含 `CastAbility` 和 `DespawnEntity`。`CastAbility` payload 约定为 `payload0=casterEntityId`、`payload1=abilityId`、`payload2=optional single candidateEntityId`。
 - `GameplayRuntimeCommandFactory` 提供 command 构造入口，避免 Demo / 项目层手写 command id 和 payload 位序。
 - Module 默认在 command 后调用 `GameplayWorld.Tick(deltaTime)`；需要外部手动 tick 时可关闭 `tickWorldAutomatically`。
 - Module 将结果写入 `RuntimeEventQueue<GameplayRuntimeEvent>`，事件包含 frame、command、caster、ability、target、failure code、reason 和 traceId。UI / Audio / Diagnostics 应消费事件队列，而不是直接监听内部私有状态。
+- `GameplayRuntimeModule.AbilityResults` 只保留最近 N 条 ability cast 诊断结果，默认容量为 `DefaultAbilityResultCapacity`。需要长期日志时应 drain runtime event 或由外部诊断系统接管，不要把该列表当完整历史。
 
 Hash / diagnostics：
 

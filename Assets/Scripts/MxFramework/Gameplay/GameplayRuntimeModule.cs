@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MxFramework.Core.Collections;
 using MxFramework.Runtime;
 
 namespace MxFramework.Gameplay
@@ -7,9 +8,11 @@ namespace MxFramework.Gameplay
     public sealed class GameplayRuntimeModule : RuntimeModule
     {
         public const string DefaultModuleId = "mxframework.gameplay.runtime";
+        public const int DefaultAbilityResultCapacity = 64;
 
         private readonly List<RuntimeCommand> _drainedCommands = new List<RuntimeCommand>();
-        private readonly List<GameplayAbilityRuntimeResult> _abilityResults = new List<GameplayAbilityRuntimeResult>();
+        private readonly RingBuffer<GameplayAbilityRuntimeResult> _abilityResults;
+        private readonly List<GameplayAbilityRuntimeResult> _abilityResultsView = new List<GameplayAbilityRuntimeResult>();
         private readonly RuntimeEventQueue<GameplayRuntimeEvent> _events = new RuntimeEventQueue<GameplayRuntimeEvent>();
 
         public GameplayRuntimeModule(
@@ -19,21 +22,24 @@ namespace MxFramework.Gameplay
             bool tickWorldAutomatically = true,
             string moduleId = DefaultModuleId,
             RuntimeTickStage tickStage = RuntimeTickStage.Simulation,
-            int priority = 100)
+            int priority = 100,
+            int abilityResultCapacity = DefaultAbilityResultCapacity)
             : base(moduleId, tickStage, priority)
         {
             World = world ?? throw new ArgumentNullException(nameof(world));
             AbilityRegistry = abilityRegistry ?? throw new ArgumentNullException(nameof(abilityRegistry));
             CommandBuffer = commandBuffer ?? throw new ArgumentNullException(nameof(commandBuffer));
             TickWorldAutomatically = tickWorldAutomatically;
+            _abilityResults = new RingBuffer<GameplayAbilityRuntimeResult>(abilityResultCapacity);
         }
 
         public GameplayWorld World { get; }
         public GameplayAbilityRegistry AbilityRegistry { get; }
         public RuntimeCommandBuffer CommandBuffer { get; }
         public bool TickWorldAutomatically { get; }
+        public int AbilityResultCapacity => _abilityResults.Capacity;
         public RuntimeEventQueue<GameplayRuntimeEvent> Events => _events;
-        public IReadOnlyList<GameplayAbilityRuntimeResult> AbilityResults => _abilityResults;
+        public IReadOnlyList<GameplayAbilityRuntimeResult> AbilityResults => _abilityResultsView;
 
         public override void Tick(RuntimeTickContext context)
         {
@@ -59,6 +65,24 @@ namespace MxFramework.Gameplay
         public int DrainEvents(RuntimeFrame frame, List<GameplayRuntimeEvent> output)
         {
             return _events.Drain(frame, output);
+        }
+
+        public int CopyAbilityResults(List<GameplayAbilityRuntimeResult> output)
+        {
+            if (output == null)
+            {
+                throw new ArgumentNullException(nameof(output));
+            }
+
+            int countBefore = output.Count;
+            _abilityResults.CopyTo(output);
+            return output.Count - countBefore;
+        }
+
+        public void ClearAbilityResults()
+        {
+            _abilityResults.Clear();
+            _abilityResultsView.Clear();
         }
 
         private void DrainCommands(RuntimeFrame frame)
@@ -111,6 +135,7 @@ namespace MxFramework.Gameplay
                 command.TraceId));
 
             _abilityResults.Add(result);
+            RefreshAbilityResultsView();
 
             int firstTargetId = result.TargetEntityIds.Count == 0 ? 0 : result.TargetEntityIds[0];
             EnqueueEvent(new GameplayRuntimeEvent(
@@ -158,6 +183,12 @@ namespace MxFramework.Gameplay
         private void EnqueueEvent(in GameplayRuntimeEvent evt)
         {
             _events.Enqueue(evt.Frame, evt);
+        }
+
+        private void RefreshAbilityResultsView()
+        {
+            _abilityResultsView.Clear();
+            _abilityResults.CopyTo(_abilityResultsView);
         }
     }
 }

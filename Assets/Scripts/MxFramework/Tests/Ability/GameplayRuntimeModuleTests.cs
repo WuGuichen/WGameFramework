@@ -123,6 +123,44 @@ namespace MxFramework.Tests.Ability
             Assert.AreEqual(1L, world.TickCount);
         }
 
+        [Test]
+        public void AbilityResults_KeepRecentResultsAndCanBeCleared()
+        {
+            RuntimeEntity player = CreateEntity(1, 1, 1000, 120, 20);
+            RuntimeEntity enemy = CreateEntity(2, 2, 600, 80, 10);
+            var world = new GameplayWorld();
+            world.Register(player);
+            world.Register(enemy);
+            var abilities = new GameplayAbilityRegistry();
+            Assert.IsTrue(abilities.TryRegister(CreateStrikeAbility(), out string failure), failure);
+            var buffer = new RuntimeCommandBuffer();
+            var module = new GameplayRuntimeModule(
+                world,
+                abilities,
+                buffer,
+                tickWorldAutomatically: false,
+                abilityResultCapacity: 2);
+
+            buffer.Enqueue(GameplayRuntimeCommandFactory.CastAbility(RuntimeFrame.Zero, player.EntityId, AbilityStrike, traceId: "one"));
+            buffer.Enqueue(GameplayRuntimeCommandFactory.CastAbility(RuntimeFrame.Zero, player.EntityId, AbilityStrike, traceId: "two"));
+            buffer.Enqueue(GameplayRuntimeCommandFactory.CastAbility(RuntimeFrame.Zero, player.EntityId, AbilityStrike, traceId: "three"));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            Assert.AreEqual(2, module.AbilityResults.Count);
+            Assert.AreEqual("two", module.AbilityResults[0].TraceId);
+            Assert.AreEqual("three", module.AbilityResults[1].TraceId);
+
+            var copied = new List<GameplayAbilityRuntimeResult>();
+            Assert.AreEqual(2, module.CopyAbilityResults(copied));
+            Assert.AreEqual("two", copied[0].TraceId);
+            Assert.AreEqual("three", copied[1].TraceId);
+
+            module.ClearAbilityResults();
+
+            Assert.AreEqual(0, module.AbilityResults.Count);
+        }
+
         private static RuntimeEntity CreateEntity(int id, int team, int hp, int attack, int defense)
         {
             var entity = new RuntimeEntity(id, team, AttrHp);
