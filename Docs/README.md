@@ -98,6 +98,16 @@
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |
 | `Tasks/RUNTIME_FOUNDATION_02_FRAME_COMMAND_REPLAY.md` | Runtime Foundation P0-2：规划 Frame Clock、Command Buffer、Replay record/playback 和 result hash。 |
 | `Tasks/RUNTIME_FOUNDATION_03_SAVE_STATE_SERIALIZATION.md` | Runtime Foundation P0-3：规划 SaveState 契约、版本迁移、Gameplay slice 保存恢复和结构化错误。 |
+| `Tasks/CORE_RUNTIME_UTILITIES_01.md` | Core Runtime Utilities P0：统一规划 StableHandleTable、Pooling、RingBuffer、TimerScheduler 和 DeterministicRandom 这批高频 noEngine 小工具。 |
+| `Tasks/CORE_HANDLES_01_STABLE_HANDLE_TABLE.md` | Core Handles P0：规划 generation-based stable handle table，防止 Timer、Audio、UI、Operation 等 stale handle 命中新对象。 |
+| `Tasks/CORE_COLLECTIONS_01_RING_BUFFER.md` | Core Collections P0：规划固定容量 `RingBuffer<T>`，统一 recent events / errors / commands / diagnostics 缓冲。 |
+| `Tasks/RUNTIME_FOUNDATION_04_TIMER_SCHEDULER.md` | Runtime Foundation P0-4：规划 noEngine Runtime Timer Scheduler，支持 frame / seconds delay、repeating、cancel、snapshot、SaveState 和 RuntimeCommand 调度模式。 |
+| `Tasks/CORE_POOLING_01_OBJECT_REFERENCE_POOL.md` | Core Pooling P0：规划 `ObjectPool<T>`、`IReference`、`ReferencePool<T>` 和可选 collection pool，沉淀 `ModifierContext` 这类局部池模式。 |
+| `Tasks/RUNTIME_RANDOM_01_DETERMINISTIC_RANDOM.md` | Runtime Random P0：规划 noEngine deterministic random，支持 seed、state capture / restore、Replay 和 SaveState。 |
+| `Tasks/RUNTIME_EVENTS_01_EVENT_QUEUE.md` | Runtime Events P0：规划按帧缓冲、稳定 drain、可诊断和可保存的 `RuntimeEventQueue<T>`，补足同步 EventBus 之外的事件流。 |
+| `Tasks/RUNTIME_QUALITY_UTILITIES_01.md` | Runtime Quality Utilities P1：规划 CooldownTracker、DirtyFlag、VersionedValue、RuntimeOperation、RateLimiter、Debouncer 和 CommandRegistry。 |
+| `Tasks/VIEW_AUTHORING_UTILITIES_01.md` | View / Authoring Utilities P2：规划局部 StateMachine、typed ContextMap、View Tween / Interpolator 和 SnapshotDiff / ChangeSet。 |
+| `Tasks/RUNTIME_FOUNDATION_05_TIMER_POOL_INTEGRATION.md` | Runtime Foundation P2：规划 Timer / Pool 的真实落点接入，用 Ability、Demo、UI、Combat、SceneFlow、Resources 或 `ModifierContext` 验证工具层。 |
 | `Tasks/AUTHORING_CONTRACT_ABILITY_01.md` | Phase 11 M5 已完成；固定 Ability authoring contract、校验错误码、AI context 和 `BasicAbilityConfig` 映射。 |
 | `Tasks/PHASE12_UI_TOOLKIT_SHOWCASE_GOAL.md` | M1-M5 已验收，下一步 M6 从 Showcase 沉淀可复用 UI Toolkit 控件和主题 token。 |
 | `Tasks/COMBAT_ANIMATION_PHYSICS_EPIC.md` | Combat 确定性动画/物理主线；Motion v0、Physics Debug、World Lifecycle、Motion v1 Capsule Proxy 已验收。 |

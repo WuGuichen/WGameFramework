@@ -6,7 +6,7 @@
 
 Runtime 提供框架级运行时组合根和生命周期调度。它不承载业务玩法，不依赖 Unity，不反向引用 Gameplay、Combat、Resources、Preview 或 Demo。
 
-当前 v0/v0.1 覆盖 Host Core、Frame / Command / Replay Core、Hash Contract 与 SaveState Orchestration：
+当前 v0/v0.1 覆盖 Host Core、Frame / Command / Replay Core、Hash Contract、SaveState Orchestration 与小型 runtime utilities：
 
 - 模块注册。
 - 生命周期：`Initialize`、`Start`、`Tick`、`Stop`、`Dispose`。
@@ -20,6 +20,11 @@ Runtime 提供框架级运行时组合根和生命周期调度。它不承载业
 - Replay playback runner。
 - Runtime result hash contributor contract。
 - SaveState v0 DTO、provider/restorer 契约、错误模型、迁移管线、JSON roundtrip 和多 participant 编排。
+- Deterministic random，可 capture / restore。
+- Runtime event queue，按帧缓冲并稳定 drain。
+- Runtime timer scheduler，支持 frame / seconds / repeating / command timer。
+- Cooldown、versioning、operation、rate limit / debounce 和 command registry 运行时质量工具。
+- Local state machine、typed context map、presentation interpolation 和 snapshot diff 工具。
 
 ## 为什么不依赖 Unity
 
@@ -61,6 +66,39 @@ Runtime 提供框架级运行时组合根和生命周期调度。它不承载业
 | `IRuntimeHashContributor` | 模块 hash 贡献接口，使用稳定 `ContributorId` 排序 |
 | `RuntimeHashCombiner` | 多 contributor 稳定排序、去重和组合入口 |
 | `RuntimeHashAccumulator` | 稳定 hash 累加器，使用显式 key/value 输入并支持 double 量化 |
+| `IDeterministicRandom` | 权威确定性随机接口 |
+| `DeterministicRandom` | XorShift32 v1 确定性随机实现 |
+| `RuntimeRandomState` / `RuntimeRandomStateJson` | 随机状态 capture / restore / JSON roundtrip |
+| `RuntimeEventQueue<T>` | 按帧缓冲、稳定 drain、可诊断的 runtime event queue |
+| `RuntimeEventQueueSnapshot` | Event queue pending 数、帧范围和 sequence 诊断 |
+| `IRuntimeTimerScheduler` | Runtime timer 调度接口 |
+| `RuntimeTimerScheduler` | 可作为 `IRuntimeModule` 注册的 noEngine timer scheduler |
+| `RuntimeTimerHandle` | 基于 `StableHandle` 的 timer handle，防止 stale cancel |
+| `RuntimeTimerCallback` / `RuntimeTimerContext` | Timer callback 模式上下文 |
+| `RuntimeTimerSchedulerSnapshot` / `RuntimeTimerSnapshotEntry` | Pending timer 诊断快照 |
+| `RuntimeTimerSchedulerState` / `RuntimeTimerState` | SaveState-friendly timer 摘要 |
+| `CooldownTracker` / `CooldownTrackerSnapshot` | 基于 `RuntimeFrame` 的冷却跟踪和诊断 |
+| `VersionToken` | 简单版本 token |
+| `DirtyFlag` | dirty 标记和版本递增工具 |
+| `VersionedValue<T>` | 值变化时递增版本的包装 |
+| `RuntimeOperationStatus` | 通用 operation 状态：Pending / Running / Succeeded / Failed / Cancelled / TimedOut |
+| `RuntimeOperationError` | Operation 错误码和消息 |
+| `IRuntimeOperation` / `RuntimeOperation` | 通用运行时 operation 状态模型 |
+| `RuntimeRateLimiter` | 基于 frame 或显式 seconds 的限频 |
+| `RuntimeDebouncer` | 基于 frame 或显式 seconds 的防抖 |
+| `RuntimeCommandDefinition` / `RuntimeCommandPayloadSchema` | RuntimeCommand 调试定义和 payload schema |
+| `RuntimeCommandRegistry` / `RuntimeCommandRegistrySnapshot` | command id 注册表和稳定快照 |
+| `RuntimeCommandRegistryValidator` | 基于 registry 的 `IRuntimeCommandValidator` |
+| `RuntimeStateMachine<TState>` | 局部状态机，不替代 AppFlow / SceneFlow |
+| `RuntimeStateTransitionPredicate<TState>` | State machine 转换规则委托 |
+| `ContextKey<T>` | typed context key |
+| `RuntimeContextMap` / `RuntimeContextMapSnapshot` | typed blackboard / context map 和诊断摘要 |
+| `RuntimeEasing` / `RuntimeEasingFunctions` | 表现层 easing 工具 |
+| `RuntimeFloatInterpolator` | noEngine float 插值工具 |
+| `RuntimeTween` | 显式 delta 驱动的 presentation tween |
+| `RuntimeSnapshotValue` | 简单 key/value snapshot 项 |
+| `RuntimeChangeKind` / `RuntimeChange` / `RuntimeChangeSet` | Snapshot diff change set |
+| `RuntimeSnapshotDiff` | 简单 key/value snapshot diff |
 | `RuntimeSaveState` | SaveState v0 根文档，包含 schema、版本、frame、entities、global counters、module states 和 metadata |
 | `RuntimeEntitySaveState` | Entity runtime 状态 DTO，包含 definition/team/alive、attributes、buffs、modifiers、abilities、counters 和 custom state |
 | `RuntimeAttributeSaveState` | Attribute base value 与 final value 恢复策略 |

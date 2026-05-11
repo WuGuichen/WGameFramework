@@ -1,15 +1,16 @@
 using System.Collections.Generic;
 using MxFramework.Attributes;
 using MxFramework.Buffs;
+using MxFramework.Core.Pooling;
 
 namespace MxFramework.Modifiers
 {
     /// <summary>
     /// Generic execution context extracted from WGame EntryApplyData.
     /// </summary>
-    public sealed class ModifierContext
+    public sealed class ModifierContext : IReference
     {
-        private static readonly Stack<ModifierContext> Pool = new Stack<ModifierContext>();
+        private static readonly ReferencePool<ModifierContext> Pool = new ReferencePool<ModifierContext>();
 
         public IAttributeOwner Target { get; set; }
         public IBuffPipeline Buffs { get; set; }
@@ -23,7 +24,7 @@ namespace MxFramework.Modifiers
 
         public static ModifierContext Get()
         {
-            return Pool.Count > 0 ? Pool.Pop() : new ModifierContext();
+            return Pool.Get();
         }
 
         public static void Push(ModifierContext context)
@@ -31,8 +32,7 @@ namespace MxFramework.Modifiers
             if (context == null)
                 return;
 
-            context.Clear();
-            Pool.Push(context);
+            Pool.Release(context);
         }
 
         public void Clear()
