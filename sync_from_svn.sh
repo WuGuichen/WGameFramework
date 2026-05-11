@@ -24,7 +24,6 @@ rsync -a --delete \
   --exclude='.gitnexus/' \
   --exclude='.claude/' \
   --exclude='.DS_Store' \
-  --exclude='Demo/' \
   "$source_root/Assets/Scripts/MxFramework" \
   "$mirror_root/Assets/Scripts/"
 
