@@ -46,6 +46,8 @@ GameplayUnsupportedCommandSystem
 
 如果调用方传入 custom pipeline，则由调用方负责注册需要的 command systems。Module 不再额外执行 built-in command switch。
 
+需要在默认 Gameplay command systems 之上扩展时，调用方可以使用 `GameplayRuntimeModule.CreateDefaultSystemPipeline(...)` 创建默认 pipeline，再 `Add` 自定义 system。
+
 ## Command Flow
 
 Default module 每帧执行顺序：
@@ -56,7 +58,7 @@ Drain RuntimeCommandBuffer
 -> Pipeline Command
    - GameplayAbilityCommandSystem handles CastAbility
    - GameplayEntityLifecycleCommandSystem handles DespawnEntity
-   - GameplayUnsupportedCommandSystem rejects unsupported command ids
+   - GameplayUnsupportedCommandSystem rejects commands not marked handled
 -> Pipeline Simulation
 -> Pipeline Resolution
 -> Pipeline Diagnostics
@@ -65,6 +67,8 @@ Drain RuntimeCommandBuffer
 ```
 
 `GameplaySystemContext.Commands` 仍是帧内临时只读 view，command systems 不能持有列表引用。
+
+处理或明确拒绝 command 的 system 必须调用 `context.CommandState.MarkHandled(command)`。`GameplayUnsupportedCommandSystem` 只拒绝未 handled command，不维护硬编码 command id 白名单。
 
 ## Ability Results
 
@@ -78,5 +82,6 @@ Drain RuntimeCommandBuffer
 - cast failure 仍输出结构化 failure event。
 - default module 仍能处理 `DespawnEntity`。
 - unsupported gameplay command 输出 `CommandRejected`。
+- custom command system 标记 handled 后不会触发 unsupported rejected event。
 - custom pipeline 中 `PreCommand` 在 `Command` system 前运行。
 - `AbilityResults` recent ring buffer 行为保持不变。

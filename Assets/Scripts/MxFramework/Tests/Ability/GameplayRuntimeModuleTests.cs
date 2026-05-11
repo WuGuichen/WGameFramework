@@ -120,6 +120,33 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void Tick_CustomCommandSystemHandledCommandDoesNotEmitUnsupportedRejectedEvent()
+        {
+            const int customCommandId = 888001;
+            var world = new GameplayWorld();
+            var abilities = new GameplayAbilityRegistry();
+            var buffer = new RuntimeCommandBuffer();
+            var handledCommands = new List<RuntimeCommand>();
+            GameplaySystemPipeline pipeline = GameplayRuntimeModule.CreateDefaultSystemPipeline(abilities);
+            pipeline.Add(new CustomHandledCommandSystem(customCommandId, handledCommands));
+            var module = new GameplayRuntimeModule(
+                world,
+                abilities,
+                buffer,
+                tickWorldAutomatically: false,
+                systemPipeline: pipeline);
+
+            buffer.Enqueue(new RuntimeCommand(RuntimeFrame.Zero, sourceId: 0, commandId: customCommandId, targetId: 7, traceId: "custom"));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            Assert.AreEqual(1, handledCommands.Count);
+            Assert.AreEqual(customCommandId, handledCommands[0].CommandId);
+            var events = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(0, module.DrainEvents(RuntimeFrame.Zero, events));
+        }
+
+        [Test]
         public void RuntimeHost_TicksGameplayModuleAfterEarlierModules()
         {
             RuntimeEntity player = CreateEntity(1, 1, 1000, 120, 20);
@@ -199,6 +226,36 @@ namespace MxFramework.Tests.Ability
                 {
                     new DamageEffect(AttrAttack, AttrDefense, AttrHp)
                 });
+        }
+
+        private sealed class CustomHandledCommandSystem : IGameplaySystem
+        {
+            private readonly int _commandId;
+            private readonly List<RuntimeCommand> _handledCommands;
+
+            public CustomHandledCommandSystem(int commandId, List<RuntimeCommand> handledCommands)
+            {
+                _commandId = commandId;
+                _handledCommands = handledCommands;
+            }
+
+            public string SystemId => "test.custom.command";
+            public GameplaySystemPhase Phase => GameplaySystemPhase.Command;
+            public int Priority => 20;
+            public bool IsEnabled => true;
+
+            public void Tick(GameplaySystemContext context)
+            {
+                for (int i = 0; i < context.Commands.Count; i++)
+                {
+                    RuntimeCommand command = context.Commands[i];
+                    if (command.CommandId != _commandId)
+                        continue;
+
+                    _handledCommands.Add(command);
+                    context.CommandState.MarkHandled(command);
+                }
+            }
         }
     }
 }

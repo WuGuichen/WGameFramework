@@ -43,6 +43,7 @@ namespace MxFramework.Gameplay
                     continue;
 
                 ExecuteCastAbility(context, command);
+                context.CommandState.MarkHandled(command);
             }
         }
 

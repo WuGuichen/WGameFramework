@@ -32,7 +32,7 @@ namespace MxFramework.Gameplay
             for (int i = 0; i < commands.Count; i++)
             {
                 RuntimeCommand command = commands[i];
-                if (IsSupported(command.CommandId))
+                if (context.CommandState.IsHandled(command))
                     continue;
 
                 context.Events.Enqueue(context.Frame, new GameplayRuntimeEvent(
@@ -45,13 +45,8 @@ namespace MxFramework.Gameplay
                     GameplayAbilityRuntimeFailureCode.None,
                     UnsupportedReason,
                     command.TraceId));
+                context.CommandState.MarkHandled(command);
             }
-        }
-
-        private static bool IsSupported(int commandId)
-        {
-            return commandId == GameplayRuntimeCommandIds.CastAbility
-                || commandId == GameplayRuntimeCommandIds.DespawnEntity;
         }
     }
 }

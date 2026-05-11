@@ -101,7 +101,9 @@
 | `Tasks/GAMEPLAY_ECS_STYLE_02_SYSTEM_PIPELINE.md` | Gameplay ECS-style 02：新增 system phase/context/pipeline，并保持 RuntimeCommandBuffer 由 GameplayRuntimeModule 单点 drain。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_03_V0_API_BRIDGE.md` | Gameplay ECS-style 03：新增 component registry，统一 entity destroy 时 registered component store cleanup，作为 v0 API bridge 的最小边界。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_04_CORE_COMPONENTS.md` | Gameplay ECS-style 04：新增 Identity、Team、Lifecycle、Tag、Status 纯数据组件和 registry GetOrCreateStore 入口。 |
+| `Tasks/GAMEPLAY_ECS_STYLE_05_COMPONENT_QUERY.md` | Gameplay ECS-style 05：新增稳定 component query helper，支持单组件查询和双组件 join，避免 system 直接依赖 store 内部结构。 |
 | `Tasks/GAMEPLAY_ABILITY_03_COMMAND_SYSTEM.md` | Gameplay Ability 03：将 CastAbility / DespawnEntity 迁入 command systems，让 GameplayRuntimeModule 只负责 drain、pipeline、event queue 和 world tick。 |
+| `Tasks/GAMEPLAY_ABILITY_04_COMMAND_HANDLED_STATE.md` | Gameplay Ability 04：新增 command handled 状态，让 unsupported system 基于 handled 判断，支持 default pipeline 上扩展自定义 command system。 |
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |
 | `Tasks/RUNTIME_FOUNDATION_02_FRAME_COMMAND_REPLAY.md` | Runtime Foundation P0-2：规划 Frame Clock、Command Buffer、Replay record/playback 和 result hash。 |
 | `Tasks/RUNTIME_FOUNDATION_03_SAVE_STATE_SERIALIZATION.md` | Runtime Foundation P0-3：规划 SaveState 契约、版本迁移、Gameplay slice 保存恢复和结构化错误。 |

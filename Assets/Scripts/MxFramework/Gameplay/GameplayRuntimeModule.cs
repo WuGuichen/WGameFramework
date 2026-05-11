@@ -11,6 +11,7 @@ namespace MxFramework.Gameplay
         public const int DefaultAbilityResultCapacity = 64;
 
         private readonly List<RuntimeCommand> _drainedCommands = new List<RuntimeCommand>();
+        private readonly GameplayCommandExecutionState _commandState = new GameplayCommandExecutionState();
         private readonly RingBuffer<GameplayAbilityRuntimeResult> _abilityResults;
         private readonly List<GameplayAbilityRuntimeResult> _abilityResultsView = new List<GameplayAbilityRuntimeResult>();
         private readonly RuntimeEventQueue<GameplayRuntimeEvent> _events = new RuntimeEventQueue<GameplayRuntimeEvent>();
@@ -32,7 +33,7 @@ namespace MxFramework.Gameplay
             CommandBuffer = commandBuffer ?? throw new ArgumentNullException(nameof(commandBuffer));
             TickWorldAutomatically = tickWorldAutomatically;
             _abilityResults = new RingBuffer<GameplayAbilityRuntimeResult>(abilityResultCapacity);
-            SystemPipeline = systemPipeline ?? CreateDefaultPipeline(AbilityRegistry, RecordAbilityResult);
+            SystemPipeline = systemPipeline ?? CreateDefaultSystemPipeline(AbilityRegistry, RecordAbilityResult);
         }
 
         public GameplayWorld World { get; }
@@ -91,6 +92,7 @@ namespace MxFramework.Gameplay
         private void DrainCommands(RuntimeFrame frame, RuntimeTickContext tickContext)
         {
             _drainedCommands.Clear();
+            _commandState.Clear();
             IReadOnlyList<RuntimeCommand> commands = CommandBuffer.DrainForFrame(frame);
             for (int i = 0; i < commands.Count; i++)
             {
@@ -99,6 +101,7 @@ namespace MxFramework.Gameplay
 
             RunSystemPipeline(frame, tickContext);
             _drainedCommands.Clear();
+            _commandState.Clear();
         }
 
         private void RunSystemPipeline(RuntimeFrame frame, RuntimeTickContext tickContext)
@@ -112,7 +115,8 @@ namespace MxFramework.Gameplay
                 tickContext.ElapsedTime,
                 World,
                 _drainedCommands,
-                _events);
+                _events,
+                _commandState);
             SystemPipeline.Tick(context);
         }
 
@@ -133,10 +137,13 @@ namespace MxFramework.Gameplay
             _abilityResults.CopyTo(_abilityResultsView);
         }
 
-        private static GameplaySystemPipeline CreateDefaultPipeline(
+        public static GameplaySystemPipeline CreateDefaultSystemPipeline(
             GameplayAbilityRegistry abilityRegistry,
-            Action<GameplayAbilityRuntimeResult> resultSink)
+            Action<GameplayAbilityRuntimeResult> resultSink = null)
         {
+            if (abilityRegistry == null)
+                throw new ArgumentNullException(nameof(abilityRegistry));
+
             var pipeline = new GameplaySystemPipeline();
             pipeline.Add(new GameplayAbilityCommandSystem(abilityRegistry, resultSink));
             pipeline.Add(new GameplayEntityLifecycleCommandSystem());

@@ -40,13 +40,15 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `IGameplayComponentStore` | Component registry 清理 registered stores 所需的非泛型 store 契约 |
 | `GameplayComponentStore<T>` / `GameplayComponentSnapshot<T>` | 只接受 `GameplayEntityId` 的稳定 component store 和 snapshot entry |
 | `GameplayComponentRegistry` | 组合 `GameplayEntityLifecycle` 和 registered component stores，统一 destroy cleanup |
+| `GameplayComponentPair<TPrimary,TSecondary>` / `GameplayComponentQuery` | 稳定 component query helper，支持单组件拷贝和双组件 join |
 | `GameplayIdentityComponent` | ECS-style component runtime 的配置身份数据 |
 | `GameplayTeamComponent` | ECS-style team 数据，复用 `GameplayTeamRelations` |
 | `GameplayLifecycleComponent` / `GameplayLifecycleState` | ECS-style lifecycle state 数据 |
 | `GameplayTagComponent` / `GameplayStatusComponent` | ECS-style tag/status 数据，构造时稳定排序、去重并拷贝输入 |
 | `IGameplaySystem` | Gameplay ECS-style system 契约，按 phase / priority 执行 |
 | `GameplaySystemPhase` | PreCommand / Command / Simulation / Resolution / Diagnostics |
-| `GameplaySystemContext` | System tick 上下文，包含 frame、delta、world、已 drain commands 和 event queue |
+| `GameplaySystemContext` | System tick 上下文，包含 frame、delta、world、已 drain commands、command handled state 和 event queue |
+| `GameplayCommandExecutionState` | Command pipeline 的帧内处理状态，供 command systems 标记 handled，供 unsupported system 判断未处理 command |
 | `GameplaySystemPipeline` | 稳定 system 调度管线，不拥有 `RuntimeCommandBuffer` drain 权限 |
 | `GameplayAbilityCommandSystem` | 处理 `CastAbility` command，调用 Ability runtime adapter 并输出 runtime event |
 | `GameplayEntityLifecycleCommandSystem` | 处理 `DespawnEntity` command |
@@ -181,6 +183,9 @@ Component store v0：
 - `GameplayComponentRegistry` 组合 entity lifecycle 和 registered stores。`DestroyEntity(id)` 只有在 lifecycle 接受该 alive id 时才清理所有 registered stores；stale / invalid id 不清理 store。
 - `GameplayComponentRegistry.Clear()` 会同时清空 lifecycle alive state 和所有 registered stores。
 - `GameplayComponentRegistry.GetOrCreateStore<T>()` 返回已有 typed store，或创建并注册一个新 store。
+- `GameplayComponentQuery` 提供稳定查询辅助：`CopyEntities`、`CopyComponents`、`CopyEntries` 和 `CopyPairs`。
+- `GameplayComponentQuery.CopyPairs(primary, secondary, output)` 以 primary store 的稳定 entity id 顺序输出交集。
+- Query 方法 append 到调用方 output，不隐式 clear，也不暴露 store 内部容器。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Core components v0：
@@ -197,16 +202,17 @@ System pipeline v0：
 - 同 phase / priority 下 registration order 具有语义；注册顺序变化会影响执行顺序。
 - Disabled system 会被跳过，但保留在 pipeline snapshot 中。
 - `GameplaySystemContext.Commands` 是 `GameplayRuntimeModule` 已 drain 的帧内临时只读 view；system 不拿 `RuntimeCommandBuffer`，也不能调用 `DrainForFrame`。需要跨 Tick 保留 command 时必须复制值，不能持有列表引用。
+- `GameplaySystemContext.CommandState` 是同一帧 pipeline-local 状态；处理或明确拒绝 command 的 system 必须调用 `MarkHandled(command)`。
 - `GameplaySystemContext.Events` 是 module 的 `RuntimeEventQueue<GameplayRuntimeEvent>`，system 可以 enqueue frame event，但 Gameplay 内部不强制 flush。
 - `GameplayRuntimeModule` 默认创建 command systems pipeline。v0 执行顺序是 drain command、pipeline PreCommand、pipeline Command、pipeline Simulation、pipeline Resolution、pipeline Diagnostics、可选 world tick。
-- Custom pipeline 由调用方负责注册需要的 command systems；module 不再执行内置 command switch。
+- Custom pipeline 由调用方负责注册需要的 command systems；module 不再执行内置 command switch。要基于默认 pipeline 扩展时，调用 `GameplayRuntimeModule.CreateDefaultSystemPipeline(...)` 后再 `Add` 自定义 system。
 - System 抛异常时，pipeline 用 `GameplaySystemPipelineException` 包装 system id 和 phase 后重新抛出。
 
 Gameplay command systems v0：
 
-- `GameplayAbilityCommandSystem` 处理 `GameplayRuntimeCommandIds.CastAbility`，复用 `GameplayAbilityRuntimeService`，输出 `AbilityCastSucceeded` / `AbilityCastFailed` event。
-- `GameplayEntityLifecycleCommandSystem` 处理 `GameplayRuntimeCommandIds.DespawnEntity`，移除 `GameplayWorld` v0 entity 并输出 `EntityDespawned` / `CommandRejected` event。
-- `GameplayUnsupportedCommandSystem` 在 default pipeline 中拒绝未识别 command，reason 为 `UnsupportedGameplayCommand`。
+- `GameplayAbilityCommandSystem` 处理 `GameplayRuntimeCommandIds.CastAbility`，复用 `GameplayAbilityRuntimeService`，输出 `AbilityCastSucceeded` / `AbilityCastFailed` event，并标记 command handled。
+- `GameplayEntityLifecycleCommandSystem` 处理 `GameplayRuntimeCommandIds.DespawnEntity`，移除 `GameplayWorld` v0 entity 并输出 `EntityDespawned` / `CommandRejected` event，并标记 command handled。
+- `GameplayUnsupportedCommandSystem` 在 default pipeline 中拒绝未 handled command，reason 为 `UnsupportedGameplayCommand`；它不维护硬编码 command id 白名单。
 - `GameplayRuntimeModule.AbilityResults` 由 ability command system 的 result sink 写入，仍只保留最近 N 条诊断结果。
 
 Hash / diagnostics：

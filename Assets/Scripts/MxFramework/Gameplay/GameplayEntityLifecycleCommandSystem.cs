@@ -35,6 +35,7 @@ namespace MxFramework.Gameplay
                     continue;
 
                 ExecuteDespawnEntity(context, command);
+                context.CommandState.MarkHandled(command);
             }
         }
 

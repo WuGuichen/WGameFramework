@@ -12,7 +12,8 @@ namespace MxFramework.Gameplay
             double elapsedTime,
             GameplayWorld world,
             IReadOnlyList<RuntimeCommand> commands,
-            RuntimeEventQueue<GameplayRuntimeEvent> events)
+            RuntimeEventQueue<GameplayRuntimeEvent> events,
+            GameplayCommandExecutionState commandState = null)
         {
             if (double.IsNaN(deltaTime) || double.IsInfinity(deltaTime) || deltaTime < 0d)
                 throw new ArgumentOutOfRangeException(nameof(deltaTime), "Delta time must be finite and non-negative.");
@@ -25,6 +26,7 @@ namespace MxFramework.Gameplay
             World = world ?? throw new ArgumentNullException(nameof(world));
             Commands = commands ?? throw new ArgumentNullException(nameof(commands));
             Events = events ?? throw new ArgumentNullException(nameof(events));
+            CommandState = commandState ?? new GameplayCommandExecutionState();
         }
 
         public RuntimeFrame Frame { get; }
@@ -33,5 +35,6 @@ namespace MxFramework.Gameplay
         public GameplayWorld World { get; }
         public IReadOnlyList<RuntimeCommand> Commands { get; }
         public RuntimeEventQueue<GameplayRuntimeEvent> Events { get; }
+        public GameplayCommandExecutionState CommandState { get; }
     }
 }
