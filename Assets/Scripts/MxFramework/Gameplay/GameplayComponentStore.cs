@@ -4,7 +4,7 @@ using System.Collections.Generic;
 namespace MxFramework.Gameplay
 {
     /// <summary>Stable component store keyed only by generation-based gameplay entity ids.</summary>
-    public sealed class GameplayComponentStore<T> where T : struct, IGameplayComponent
+    public sealed class GameplayComponentStore<T> : IGameplayComponentStore where T : struct, IGameplayComponent
     {
         private readonly SortedDictionary<GameplayEntityId, T> _components;
 
@@ -14,6 +14,7 @@ namespace MxFramework.Gameplay
         }
 
         public int Count => _components.Count;
+        public Type ComponentType => typeof(T);
 
         public bool TryAdd(GameplayEntityId entityId, T component)
         {

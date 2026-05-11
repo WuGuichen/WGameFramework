@@ -100,6 +100,26 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void Tick_UnsupportedGameplayCommandEmitsRejectedEvent()
+        {
+            var world = new GameplayWorld();
+            var buffer = new RuntimeCommandBuffer();
+            var module = new GameplayRuntimeModule(world, new GameplayAbilityRegistry(), buffer, tickWorldAutomatically: false);
+
+            buffer.Enqueue(new RuntimeCommand(RuntimeFrame.Zero, sourceId: 0, commandId: 999999, targetId: 7, traceId: "unknown"));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            var events = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(1, module.DrainEvents(RuntimeFrame.Zero, events));
+            Assert.AreEqual(GameplayRuntimeEventType.CommandRejected, events[0].Type);
+            Assert.AreEqual(999999, events[0].CommandId);
+            Assert.AreEqual(7, events[0].CasterEntityId);
+            Assert.AreEqual(GameplayUnsupportedCommandSystem.UnsupportedReason, events[0].Reason);
+            Assert.AreEqual("unknown", events[0].TraceId);
+        }
+
+        [Test]
         public void RuntimeHost_TicksGameplayModuleAfterEarlierModules()
         {
             RuntimeEntity player = CreateEntity(1, 1, 1000, 120, 20);

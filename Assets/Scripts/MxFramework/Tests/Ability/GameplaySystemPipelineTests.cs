@@ -99,6 +99,29 @@ namespace MxFramework.Tests.Ability
             Assert.AreEqual(new RuntimeFrame(4), buffer.CurrentFrame);
         }
 
+        [Test]
+        public void RuntimeModule_RunsPipelinePreCommandBeforePipelineCommandSystems()
+        {
+            var world = new GameplayWorld();
+            var buffer = new RuntimeCommandBuffer();
+            var order = new List<string>();
+            var pipeline = new GameplaySystemPipeline();
+            pipeline.Add(new RecordingSystem("command", GameplaySystemPhase.Command, 0, order));
+            pipeline.Add(new RecordingSystem("pre", GameplaySystemPhase.PreCommand, 0, order));
+            var module = new GameplayRuntimeModule(
+                world,
+                new GameplayAbilityRegistry(),
+                buffer,
+                tickWorldAutomatically: false,
+                systemPipeline: pipeline);
+
+            buffer.Enqueue(new RuntimeCommand(RuntimeFrame.Zero, sourceId: 0, commandId: 42, targetId: 0));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            CollectionAssert.AreEqual(new[] { "pre", "command" }, order);
+        }
+
         private static GameplaySystemContext CreateContext()
         {
             return new GameplaySystemContext(

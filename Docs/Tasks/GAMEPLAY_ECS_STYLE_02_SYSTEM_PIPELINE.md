@@ -69,7 +69,23 @@ Priority asc
 Registration sequence asc
 ```
 
-`IsEnabled == false` 的 system 会被跳过，但仍保留在 pipeline 和 snapshot 中。
+`IsEnabled == false` 的 system 会被跳过，但仍保留在 pipeline 和 snapshot 中。同 phase / priority 下，registration order 具有语义；组合根或配置注册顺序变化会影响执行顺序。后续如果需要弱化注册顺序影响，可以再引入 explicit order 或 `SystemId` ordinal tie-breaker。
+
+`GAMEPLAY_ABILITY_03_COMMAND_SYSTEM` 已把 built-in command handlers 迁入 pipeline。当前 default module 中，`PreCommand` 已位于 command systems 之前：
+
+```text
+Drain RuntimeCommandBuffer
+-> Pipeline PreCommand
+-> Pipeline Command
+-> Pipeline Simulation
+-> Pipeline Resolution
+-> Pipeline Diagnostics
+-> Optional GameplayWorld.Tick
+```
+
+## Context Lifetime
+
+`GameplaySystemContext.Commands` 是帧内临时只读 view。System 可以在 `Tick()` 内读取；如果需要在 Tick 之后保留 command，必须复制 command 值，不能持有 `Commands` 列表引用。
 
 ## CommandBuffer Ownership
 
@@ -84,7 +100,7 @@ Run GameplaySystemPipeline with drained commands
 Optional GameplayWorld.Tick
 ```
 
-后续 `GAMEPLAY_ABILITY_03_COMMAND_SYSTEM` 会把 Ability / Despawn command handling 从 module 迁到 system；本批次只提供调度能力，不扩大业务逻辑。
+`GAMEPLAY_ABILITY_03_COMMAND_SYSTEM` 已把 Ability / Despawn command handling 从 module 迁到 system。本批次文档保留 system pipeline 的底座说明；command system 细节见 `GAMEPLAY_ABILITY_03_COMMAND_SYSTEM.md`。
 
 ## 异常策略
 

@@ -30,9 +30,9 @@ namespace MxFramework.Gameplay
             World = world ?? throw new ArgumentNullException(nameof(world));
             AbilityRegistry = abilityRegistry ?? throw new ArgumentNullException(nameof(abilityRegistry));
             CommandBuffer = commandBuffer ?? throw new ArgumentNullException(nameof(commandBuffer));
-            SystemPipeline = systemPipeline;
             TickWorldAutomatically = tickWorldAutomatically;
             _abilityResults = new RingBuffer<GameplayAbilityRuntimeResult>(abilityResultCapacity);
+            SystemPipeline = systemPipeline ?? CreateDefaultPipeline(AbilityRegistry, RecordAbilityResult);
         }
 
         public GameplayWorld World { get; }
@@ -97,11 +97,6 @@ namespace MxFramework.Gameplay
                 _drainedCommands.Add(commands[i]);
             }
 
-            for (int i = 0; i < _drainedCommands.Count; i++)
-            {
-                ExecuteCommand(frame, _drainedCommands[i]);
-            }
-
             RunSystemPipeline(frame, tickContext);
             _drainedCommands.Clear();
         }
@@ -121,82 +116,10 @@ namespace MxFramework.Gameplay
             SystemPipeline.Tick(context);
         }
 
-        private void ExecuteCommand(RuntimeFrame frame, RuntimeCommand command)
+        private void RecordAbilityResult(GameplayAbilityRuntimeResult result)
         {
-            switch (command.CommandId)
-            {
-                case GameplayRuntimeCommandIds.CastAbility:
-                    ExecuteCastAbility(frame, command);
-                    return;
-                case GameplayRuntimeCommandIds.DespawnEntity:
-                    ExecuteDespawnEntity(frame, command);
-                    return;
-                default:
-                    EnqueueRejected(frame, command, "UnsupportedGameplayCommand");
-                    return;
-            }
-        }
-
-        private void ExecuteCastAbility(RuntimeFrame frame, RuntimeCommand command)
-        {
-            int casterEntityId = command.Payload0 != 0 ? command.Payload0 : command.TargetId;
-            int abilityId = command.Payload1;
-            int candidateEntityId = command.Payload2;
-            IReadOnlyList<int> candidates = candidateEntityId > 0
-                ? new[] { candidateEntityId }
-                : null;
-
-            var service = new GameplayAbilityRuntimeService(World.Entities.CreateSnapshot(), AbilityRegistry);
-            GameplayAbilityRuntimeResult result = service.Cast(new GameplayAbilityCastRequest(
-                casterEntityId,
-                abilityId,
-                candidates,
-                command.TraceId));
-
             _abilityResults.Add(result);
             RefreshAbilityResultsView();
-
-            int firstTargetId = result.TargetEntityIds.Count == 0 ? 0 : result.TargetEntityIds[0];
-            EnqueueEvent(new GameplayRuntimeEvent(
-                frame,
-                result.Success ? GameplayRuntimeEventType.AbilityCastSucceeded : GameplayRuntimeEventType.AbilityCastFailed,
-                command.CommandId,
-                casterEntityId,
-                abilityId,
-                firstTargetId,
-                result.FailureCode,
-                result.FailureReason,
-                command.TraceId));
-        }
-
-        private void ExecuteDespawnEntity(RuntimeFrame frame, RuntimeCommand command)
-        {
-            int entityId = command.Payload0 != 0 ? command.Payload0 : command.TargetId;
-            bool removed = World.Remove(entityId);
-            EnqueueEvent(new GameplayRuntimeEvent(
-                frame,
-                removed ? GameplayRuntimeEventType.EntityDespawned : GameplayRuntimeEventType.CommandRejected,
-                command.CommandId,
-                casterEntityId: 0,
-                abilityId: 0,
-                targetEntityId: entityId,
-                failureCode: GameplayAbilityRuntimeFailureCode.None,
-                reason: removed ? string.Empty : "MissingEntity",
-                traceId: command.TraceId));
-        }
-
-        private void EnqueueRejected(RuntimeFrame frame, RuntimeCommand command, string reason)
-        {
-            EnqueueEvent(new GameplayRuntimeEvent(
-                frame,
-                GameplayRuntimeEventType.CommandRejected,
-                command.CommandId,
-                command.TargetId,
-                command.Payload1,
-                command.Payload2,
-                GameplayAbilityRuntimeFailureCode.None,
-                reason,
-                command.TraceId));
         }
 
         private void EnqueueEvent(in GameplayRuntimeEvent evt)
@@ -208,6 +131,17 @@ namespace MxFramework.Gameplay
         {
             _abilityResultsView.Clear();
             _abilityResults.CopyTo(_abilityResultsView);
+        }
+
+        private static GameplaySystemPipeline CreateDefaultPipeline(
+            GameplayAbilityRegistry abilityRegistry,
+            Action<GameplayAbilityRuntimeResult> resultSink)
+        {
+            var pipeline = new GameplaySystemPipeline();
+            pipeline.Add(new GameplayAbilityCommandSystem(abilityRegistry, resultSink));
+            pipeline.Add(new GameplayEntityLifecycleCommandSystem());
+            pipeline.Add(new GameplayUnsupportedCommandSystem());
+            return pipeline;
         }
     }
 }
