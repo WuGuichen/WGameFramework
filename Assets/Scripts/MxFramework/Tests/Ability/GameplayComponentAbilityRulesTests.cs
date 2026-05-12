@@ -154,12 +154,37 @@ namespace MxFramework.Tests.Ability
             var events = new List<GameplayRuntimeEvent>();
             Assert.AreEqual(3, module.DrainEvents(RuntimeFrame.Zero, events));
             Assert.AreEqual(GameplayRuntimeEventType.ComponentAttributeChanged, events[0].Type);
-            Assert.AreEqual(GameplayAttributeEvents.AddAttributeReason, events[0].Reason);
+            Assert.AreEqual(GameplayComponentAbilityEvents.AbilityCostCommittedReason, events[0].Reason);
+            Assert.AreEqual(Mana, events[0].AttributeId);
+            Assert.AreEqual(-3, events[0].AttributeDelta);
             Assert.AreEqual(GameplayRuntimeEventType.ComponentAttributeChanged, events[1].Type);
-            Assert.AreEqual(GameplayComponentAbilityEvents.AbilityCostCommittedReason, events[1].Reason);
-            Assert.AreEqual(Mana, events[1].AttributeId);
-            Assert.AreEqual(-3, events[1].AttributeDelta);
+            Assert.AreEqual(GameplayAttributeEvents.AddAttributeReason, events[1].Reason);
             Assert.AreEqual(GameplayRuntimeEventType.AbilityCastSucceeded, events[2].Type);
+        }
+
+        [Test]
+        public void CastComponentAbility_EffectFailureDoesNotStartCooldownButCostIsNotRefunded()
+        {
+            GameplayComponentWorld world = CreateWorld(registerSchemas: false);
+            GameplayEntityId caster = CreateActor(world, hp: 100, mana: 10);
+            var registry = new GameplayComponentAbilityRegistry();
+            registry.Register(new FailingComponentAbility(new GameplayComponentAbilityRuleSet(
+                cooldownFrames: 5,
+                costs: new[] { new GameplayAbilityCost(Mana, 3) })));
+            GameplayRuntimeModule module = CreateModule(world, registry);
+
+            EnqueueCast(module, RuntimeFrame.Zero, caster);
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            Assert.AreEqual(100, GetCurrent(world, caster, Hp));
+            Assert.AreEqual(7, GetCurrent(world, caster, Mana));
+            Assert.IsFalse(world.TryGetStore(out GameplayComponentStore<GameplayAbilityCooldownComponent> _));
+
+            var events = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(2, module.DrainEvents(RuntimeFrame.Zero, events));
+            Assert.AreEqual(GameplayComponentAbilityEvents.AbilityCostCommittedReason, events[0].Reason);
+            Assert.AreEqual(GameplayRuntimeEventType.AbilityCastFailed, events[1].Type);
+            Assert.AreEqual(GameplayComponentAbilityEvents.EffectFailedReason, events[1].Reason);
         }
 
         [Test]
@@ -356,6 +381,27 @@ namespace MxFramework.Tests.Ability
             return RuntimeHashCombiner.ComputeHash(
                 RuntimeFrame.Zero,
                 new IRuntimeHashContributor[] { new GameplayComponentWorldHashContributor(world) });
+        }
+
+        private sealed class FailingComponentAbility : IGameplayComponentAbility
+        {
+            public FailingComponentAbility(GameplayComponentAbilityRuleSet rules)
+            {
+                Rules = rules;
+            }
+
+            public int AbilityId => AbilityStrike;
+            public GameplayComponentAbilityRuleSet Rules { get; }
+
+            public GameplayComponentAbilityResult Cast(GameplayComponentAbilityContext context)
+            {
+                return GameplayComponentAbilityResult.Failed(
+                    AbilityId,
+                    context.CasterEntityId,
+                    GameplayComponentAbilityFailureCode.EffectFailed,
+                    GameplayComponentAbilityEvents.EffectFailedReason,
+                    new[] { context.CasterEntityId });
+            }
         }
     }
 }

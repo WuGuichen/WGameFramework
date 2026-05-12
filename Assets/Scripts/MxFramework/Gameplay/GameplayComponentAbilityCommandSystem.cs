@@ -301,6 +301,26 @@ namespace MxFramework.Gameplay
                 return;
             }
 
+            GameplayComponentAbilityRuleResult costCommitResult = GameplayComponentAbilityRules.CommitCosts(
+                componentWorld,
+                casterEntityId,
+                abilityId,
+                ability.Rules,
+                context.Frame,
+                command.CommandId,
+                command.TraceId);
+            if (!costCommitResult.Success)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    costCommitResult.Reason,
+                    MapFailureCode(costCommitResult.FailureCode));
+                return;
+            }
+
             GameplayComponentAbilityResult result = ability.Cast(new GameplayComponentAbilityContext(
                 context.Frame,
                 componentWorld,
@@ -322,23 +342,21 @@ namespace MxFramework.Gameplay
 
             if (result.Success)
             {
-                GameplayComponentAbilityRuleResult commitResult = GameplayComponentAbilityRules.Commit(
+                GameplayComponentAbilityRuleResult cooldownCommitResult = GameplayComponentAbilityRules.CommitCooldown(
                     componentWorld,
                     casterEntityId,
                     abilityId,
                     ability.Rules,
-                    context.Frame,
-                    command.CommandId,
-                    command.TraceId);
-                if (!commitResult.Success)
+                    context.Frame);
+                if (!cooldownCommitResult.Success)
                 {
                     EnqueueFailure(
                         context,
                         command,
                         casterEntityId,
                         abilityId,
-                        commitResult.Reason,
-                        MapFailureCode(commitResult.FailureCode));
+                        cooldownCommitResult.Reason,
+                        MapFailureCode(cooldownCommitResult.FailureCode));
                     return;
                 }
             }

@@ -221,7 +221,7 @@ Component store v0：
 - `GameplayComponentWorldHashContributor` 通过 schema registry 接入 `RuntimeHashCombiner`，按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
 - `GameplayComponentWorldSaveStateProvider` 通过 `RuntimeModuleSaveState.CustomState.PayloadJson` 保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、missing adapter、unsupported version 或 invalid entity id 返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
-- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`；component spawn definition 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_14_COMPONENT_SPAWN_DEFINITIONS.md`；component attribute runtime 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_15_COMPONENT_ATTRIBUTE_RUNTIME.md`；component ability command bridge 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_16_COMPONENT_ABILITY_COMMAND_BRIDGE.md`；component ability targeting 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_17_COMPONENT_ABILITY_TARGETING.md`；component ability rules 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_18_COMPONENT_ABILITY_RULES.md`。
+- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`；component spawn definition 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_14_COMPONENT_SPAWN_DEFINITIONS.md`；component attribute runtime 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_15_COMPONENT_ATTRIBUTE_RUNTIME.md`；component ability command bridge 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_16_COMPONENT_ABILITY_COMMAND_BRIDGE.md`；component ability targeting 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_17_COMPONENT_ABILITY_TARGETING.md`；component ability rules 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_18_COMPONENT_ABILITY_RULES.md`；component runtime vertical slice 验收见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_19_COMPONENT_RUNTIME_VERTICAL_SLICE.md`。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Component attribute runtime v0：
@@ -258,6 +258,7 @@ Component ability targeting v0：
 - `GameplayComponentTargetingService` 只处理 component candidates，不复用旧 `IRuntimeEntity` / 裸 int targeting result；输入顺序就是候选优先级，selected / rejected 输出顺序稳定。
 - Rejected reason 复用 `GameplayTargetRejectReason`，但 rejected target 保存完整 `GameplayEntityId`。
 - `GameplayComponentAbilityRequestStore` 是 transient input store，不属于 `GameplayComponentWorld` state，不参与 component world hash / SaveState；组合根负责持有，world/session reset 时应调用 `Clear()`。
+- `GameplayComponentAbilityRequestStore.Clear()` 只清 pending requests，不重置 allocator index / generation；旧 handle 在 clear 后仍然失效，不会因为下次 request 复用而重新变有效。
 - `CastComponentAbilityRequest` 使用 `targetId=requestHandle.index`、`payload0=requestHandle.index`、`payload1=requestHandle.generation`、`payload2=abilityId`，通过 request store 读取完整 caster id、candidate ids 和 query。
 - Request command 成功或结构化失败后都会 remove request handle，避免 transient request 泄漏；missing request 无法 remove。
 - Explicit target ability 通过 `GameplayComponentTargetMode.ExplicitSingle` 读取 selected target list 的第一个 target；`Self` mode 仍只修改 caster。
@@ -270,13 +271,27 @@ Component ability rules v0：
 - `GameplayComponentAbilityRuleSet` 当前支持 cooldown frame gate 和 attribute costs；cost 按 `AttributeId` 升序保存和执行，避免注册顺序影响行为或 hash。
 - `GameplayAbilityCost` 要求 `AttributeId > 0`、`Amount >= 0`；`Amount == 0` 是 no-op cost。
 - `GameplayAbilityCooldownComponent` 是 component-native cooldown state，按 `AbilityId` 升序保存 `EndFrame`；`EndFrame > currentFrame` 表示仍在 cooldown 中。
-- `GameplayComponentAbilityRules.Evaluate` 只读，不修改 state；`Commit` 只在 ability cast success 后扣 cost 并启动 cooldown。
+- `GameplayComponentAbilityRules.Evaluate` 只读，不修改 state；command system 当前按 `Evaluate -> CommitCosts -> Cast ability -> CommitCooldown on success -> final event` 执行。
 - `GameplayComponentAbilityCommandSystem` 在 ability cast 前会先清理 caster 上已过期 cooldown，再执行 rule evaluate；rule rejected 输出 `AbilityCastFailed` 且不调用 ability effect。
-- 成功 cast 的事件顺序固定为 ability effect event、cost commit event、final `AbilityCastSucceeded` event；如果没有 cost，则没有 cost commit event。
+- 过期 cooldown 采用惰性清理：只有当前 caster 在 cast 前会清理；闲置 entity 的过期 cooldown 可能继续留在 hash / SaveState 中，直到该 entity cast 或后续 cleanup system 处理。
+- 成功 cast 且有 cost 的事件顺序固定为 cost commit event、ability effect event、final `AbilityCastSucceeded` event；如果没有 cost，则没有 cost commit event。
 - Cost commit 扣 caster 的 `GameplayAttributeSetComponent` current value，不修改 base value；insufficient cost 输出 `ComponentAbilityInsufficientCost`。
+- 当前 v0 不是完整事务 / rollback 模型：cost 在 effect 前提交，effect 失败不会自动 refund；cooldown 只在 effect success 后启动。若未来需要退费、预演或回滚，应通过显式 refund policy / transaction adapter 扩展。
 - Cooldown rejected 输出 `ComponentAbilityOnCooldown`；invalid rule 输出 `InvalidComponentAbilityRule`。
 - `GameplayAbilityCooldownComponentSchemaDescriptors` 提供 diagnostics、runtime hash 和 SaveState adapters；cooldown state 参与 ComponentWorld hash / SaveState，cost definition 不进入 SaveState。
 - v0 不做 cast time、channel、interrupt、projectile、global cooldown、buff / modifier gate，也不自动加入 default pipeline；只要项目注册 `GameplayComponentAbilityCommandSystem`，rules 就随 ability 生效。
+
+Component runtime vertical slice v0：
+
+- 当前 component gameplay runtime v0 已通过最小闭环验收：`RuntimeHost -> RuntimeCommandBuffer -> GameplayRuntimeModule -> GameplaySystemPipeline -> spawn -> attributes -> targeting -> ability rules -> effect -> lifecycle cleanup -> events -> hash -> SaveState`。
+- 验收场景是 Hero 通过 spawn command 创建、Enemy 通过 spawn command 创建，Hero 使用 `CastComponentAbilityRequest` 对 explicit enemy target 释放 Strike。
+- Strike 使用 component-native ability、attribute set、cost 和 cooldown；成功 cast 后稳定输出 cost attribute event、effect attribute event、final ability success event。
+- Cooldown rejected 不执行 effect，也不改变 component world state hash，除非该 cast 触发过期 cooldown 惰性清理。
+- Enemy HP 到 0 后，当前 v0 不自动死亡；测试 helper 显式把 lifecycle component 标记为 `PendingDestroy`，再由 `GameplayLifecycleCleanupSystem` 在 Resolution phase 销毁 entity 并清理 registered stores。
+- ComponentWorld SaveState 捕获 entity、core components、attributes 和 cooldown；restore 不需要 spawn registry、ability registry 或 request store。
+- Restore 后继续 cast 需要重新提供 runtime registries 和 transient request store；这些是组合根输入依赖，不是 SaveState 内容。
+- 旧 `RuntimeEntity` / `GameplayWorld` route 仍保留，component runtime vertical slice 不与旧 source of truth 双写同一玩法对象。
+- Buff / Modifier component runtime、Combat bridge、cast time / interrupt、UI diagnostics 和 playable demo scene 是下一阶段，不属于当前 v0 闭环。
 
 Component spawn definitions v0：
 

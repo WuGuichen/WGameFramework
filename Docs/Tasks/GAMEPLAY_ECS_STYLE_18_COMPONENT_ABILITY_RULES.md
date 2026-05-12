@@ -188,13 +188,14 @@ public static class GameplayComponentAbilityRules
 
 `Evaluate` 只读，不修改 state。
 
-`Commit` 在 ability 成功后：
+`Commit` 表示完整提交 helper；command system v0 实际拆分为 cost commit 和 cooldown commit：
 
-1. 扣 cost。
-2. 启动 cooldown。
-3. 写回 component stores。
+1. `Evaluate` 先做只读检查。
+2. `CommitCosts` 在 ability effect 前扣 cost。
+3. ability effect 执行。
+4. effect 成功后 `CommitCooldown` 启动 cooldown。
 
-如果 ability cast 失败，不扣 cost，不启动 cooldown。
+当前 v0 不是完整事务 / rollback 模型。effect 失败不会启动 cooldown，但已经提交的 cost 不会自动 refund；如果项目需要退费，后续必须通过显式 refund policy 或 transaction adapter 引入，不隐式回滚 component stores。
 
 ## Command system integration
 
@@ -204,14 +205,13 @@ public static class GameplayComponentAbilityRules
 2. 查 ability。
 3. `Evaluate(rules)`。
 4. 如果 rule rejected：输出 `AbilityCastFailed`，不调用 ability。
-5. 调用 ability cast。
-6. 如果 ability success：`Commit(rules)`。
-7. 输出 final ability event。
-8. MarkHandled。
+5. `CommitCosts(rules)`。
+6. 调用 ability cast。
+7. 如果 ability success：`CommitCooldown(rules)`。
+8. 输出 final ability event。
+9. MarkHandled。
 
-注意：cost 应在 ability 成功后 commit，而不是 cast 前立即扣。这样 effect 失败不会扣资源。
-
-如果后续需要“先扣 cost 再 cast”，应作为显式策略加入 rule set；本批次固定为 success commit。
+注意：本批次采用“先扣 cost，再执行 effect，成功后启动 cooldown”。这避免 effect 已经生效后 cost commit 才失败的半成功状态，但它不是 refund 模型；effect 失败时 cost 是否退还由后续显式策略决定。
 
 ## Failure code / reason
 
@@ -258,8 +258,8 @@ AbilityCastSucceeded
 
 如果成本属性和 effect 属性相同，事件顺序必须稳定：
 
-1. ability effect event
-2. cost event
+1. cost event
+2. ability effect event
 3. final ability event
 
 Cooldown start 第一版可只通过 component diagnostics/hash/save 观察；后续 UI 需要时再加 `ComponentAbilityCooldownStarted` event。
@@ -297,6 +297,8 @@ public sealed class GameplayAbilityCooldownCleanupSystem : IGameplaySystem
 运行在 `GameplaySystemPhase.Resolution`，遍历 cooldown store，清理过期项。
 
 推荐本批次采用 **方案 A**，把系统数量压低。第 19 垂直切片如果需要长期诊断干净，再补 cleanup system。
+
+因此 v0 中过期 cooldown 是惰性清理：当前 caster cast 前会清理，闲置 entity 的过期 cooldown 可能保留在 hash / SaveState 中，直到该 entity cast 或后续 cleanup system 处理。
 
 ## 测试要求
 

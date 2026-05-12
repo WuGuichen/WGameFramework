@@ -28,6 +28,13 @@ namespace MxFramework.Gameplay
                     GameplayComponentAbilityFailureCode.InvalidAbilityRule,
                     GameplayComponentAbilityEvents.InvalidRuleReason);
             }
+            if (rules.CooldownFrames > 0L && rules.CooldownFrames > long.MaxValue - frame.Value)
+            {
+                return GameplayComponentAbilityRuleResult.Failed(
+                    GameplayComponentAbilityFailureCode.InvalidAbilityRule,
+                    GameplayComponentAbilityEvents.InvalidRuleReason,
+                    abilityId);
+            }
 
             if (world.TryGetStore(out GameplayComponentStore<GameplayAbilityCooldownComponent> cooldowns) &&
                 cooldowns.TryGet(caster, out GameplayAbilityCooldownComponent cooldown))
@@ -102,26 +109,79 @@ namespace MxFramework.Gameplay
             if (!costResult.Success)
                 return costResult;
 
-            if (rules.CooldownFrames > 0L)
-            {
-                GameplayComponentStore<GameplayAbilityCooldownComponent> cooldowns =
-                    world.GetOrCreateStore<GameplayAbilityCooldownComponent>();
-                cooldowns.TryGet(caster, out GameplayAbilityCooldownComponent cooldown);
-                GameplayAbilityCooldownComponent updated;
-                try
-                {
-                    updated = cooldown.Start(abilityId, frame, rules.CooldownFrames);
-                }
-                catch (Exception)
-                {
-                    return GameplayComponentAbilityRuleResult.Failed(
-                        GameplayComponentAbilityFailureCode.InvalidAbilityRule,
-                        GameplayComponentAbilityEvents.InvalidRuleReason);
-                }
+            return CommitCooldown(
+                world,
+                caster,
+                abilityId,
+                rules,
+                frame);
+        }
 
-                cooldowns.Set(caster, updated);
+        public static GameplayComponentAbilityRuleResult CommitCosts(
+            GameplayComponentWorld world,
+            GameplayEntityId caster,
+            int abilityId,
+            GameplayComponentAbilityRuleSet rules,
+            RuntimeFrame frame,
+            int commandId = 0,
+            string traceId = "")
+        {
+            if (world == null || !caster.IsValid || abilityId <= 0)
+                return GameplayComponentAbilityRuleResult.Failed(
+                    GameplayComponentAbilityFailureCode.InvalidAbilityRule,
+                    GameplayComponentAbilityEvents.InvalidRuleReason);
+
+            rules = rules ?? GameplayComponentAbilityRuleSet.Empty;
+            return CommitCostsCore(
+                world,
+                caster,
+                abilityId,
+                rules,
+                frame,
+                commandId,
+                traceId);
+        }
+
+        public static GameplayComponentAbilityRuleResult CommitCooldown(
+            GameplayComponentWorld world,
+            GameplayEntityId caster,
+            int abilityId,
+            GameplayComponentAbilityRuleSet rules,
+            RuntimeFrame frame)
+        {
+            if (world == null || !caster.IsValid || abilityId <= 0)
+                return GameplayComponentAbilityRuleResult.Failed(
+                    GameplayComponentAbilityFailureCode.InvalidAbilityRule,
+                    GameplayComponentAbilityEvents.InvalidRuleReason);
+
+            rules = rules ?? GameplayComponentAbilityRuleSet.Empty;
+            if (rules.CooldownFrames == 0L)
+                return GameplayComponentAbilityRuleResult.Succeeded();
+            if (rules.CooldownFrames < 0L || rules.CooldownFrames > long.MaxValue - frame.Value)
+            {
+                return GameplayComponentAbilityRuleResult.Failed(
+                    GameplayComponentAbilityFailureCode.InvalidAbilityRule,
+                    GameplayComponentAbilityEvents.InvalidRuleReason,
+                    abilityId);
             }
 
+            GameplayComponentStore<GameplayAbilityCooldownComponent> cooldowns =
+                world.GetOrCreateStore<GameplayAbilityCooldownComponent>();
+            cooldowns.TryGet(caster, out GameplayAbilityCooldownComponent cooldown);
+            GameplayAbilityCooldownComponent updated;
+            try
+            {
+                updated = cooldown.Start(abilityId, frame, rules.CooldownFrames);
+            }
+            catch (Exception)
+            {
+                return GameplayComponentAbilityRuleResult.Failed(
+                    GameplayComponentAbilityFailureCode.InvalidAbilityRule,
+                    GameplayComponentAbilityEvents.InvalidRuleReason,
+                    abilityId);
+            }
+
+            cooldowns.Set(caster, updated);
             return GameplayComponentAbilityRuleResult.Succeeded();
         }
 
@@ -145,7 +205,7 @@ namespace MxFramework.Gameplay
                 cooldowns.Set(caster, updated);
         }
 
-        private static GameplayComponentAbilityRuleResult CommitCosts(
+        private static GameplayComponentAbilityRuleResult CommitCostsCore(
             GameplayComponentWorld world,
             GameplayEntityId caster,
             int abilityId,
