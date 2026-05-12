@@ -12,7 +12,8 @@ namespace MxFramework.Gameplay
         CommandRejected = 4,
         WorldTicked = 5,
         ComponentEntityCreated = 6,
-        ComponentEntityDestroyed = 7
+        ComponentEntityDestroyed = 7,
+        ComponentAttributeChanged = 8
     }
 
     public readonly struct GameplayRuntimeEvent
@@ -28,7 +29,11 @@ namespace MxFramework.Gameplay
             string reason,
             string traceId,
             int componentEntityIndex = 0,
-            int componentEntityGeneration = 0)
+            int componentEntityGeneration = 0,
+            int attributeId = 0,
+            int oldAttributeValue = 0,
+            int newAttributeValue = 0,
+            int attributeDelta = 0)
         {
             Frame = frame;
             Type = type;
@@ -40,8 +45,15 @@ namespace MxFramework.Gameplay
             Reason = reason ?? string.Empty;
             TraceId = traceId ?? string.Empty;
             ValidateComponentEntity(componentEntityIndex, componentEntityGeneration);
+            if (attributeId < 0)
+                throw new ArgumentOutOfRangeException(nameof(attributeId), "Gameplay runtime event attribute id cannot be negative.");
+
             ComponentEntityIndex = componentEntityIndex;
             ComponentEntityGeneration = componentEntityGeneration;
+            AttributeId = attributeId;
+            OldAttributeValue = oldAttributeValue;
+            NewAttributeValue = newAttributeValue;
+            AttributeDelta = attributeDelta;
         }
 
         public RuntimeFrame Frame { get; }
@@ -55,6 +67,10 @@ namespace MxFramework.Gameplay
         public string TraceId { get; }
         public int ComponentEntityIndex { get; }
         public int ComponentEntityGeneration { get; }
+        public int AttributeId { get; }
+        public int OldAttributeValue { get; }
+        public int NewAttributeValue { get; }
+        public int AttributeDelta { get; }
         public GameplayEntityId ComponentEntityId => new GameplayEntityId(ComponentEntityIndex, ComponentEntityGeneration);
 
         public bool TryGetComponentEntityId(out GameplayEntityId entityId)

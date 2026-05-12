@@ -41,11 +41,16 @@ namespace MxFramework.Gameplay
                 return Array.Empty<IGameplayComponentSpawnInitializer>();
 
             var copy = new IGameplayComponentSpawnInitializer[initializers.Count];
+            var seenSchemaIds = new HashSet<string>(StringComparer.Ordinal);
             for (int i = 0; i < initializers.Count; i++)
             {
                 IGameplayComponentSpawnInitializer initializer = initializers[i];
                 if (initializer == null)
                     throw new ArgumentException("Gameplay component spawn initializer cannot be null.", nameof(initializers));
+                if (string.IsNullOrWhiteSpace(initializer.SchemaId))
+                    throw new ArgumentException("Gameplay component spawn initializer schema id cannot be empty.", nameof(initializers));
+                if (!seenSchemaIds.Add(initializer.SchemaId))
+                    throw new ArgumentException("Gameplay component spawn initializer schema id is duplicated: " + initializer.SchemaId, nameof(initializers));
 
                 copy[i] = initializer;
             }

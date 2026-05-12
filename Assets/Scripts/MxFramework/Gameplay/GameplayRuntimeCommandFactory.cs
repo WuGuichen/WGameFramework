@@ -83,5 +83,43 @@ namespace MxFramework.Gameplay
                 payload1: variantId,
                 traceId: traceId);
         }
+
+        public static RuntimeCommand SetComponentAttribute(
+            RuntimeFrame frame,
+            GameplayEntityId entityId,
+            int attributeId,
+            int value,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.SetComponentAttribute,
+                targetId: entityId.Index,
+                payload0: entityId.Generation,
+                payload1: attributeId,
+                payload2: value,
+                traceId: traceId);
+        }
+
+        public static RuntimeCommand AddComponentAttribute(
+            RuntimeFrame frame,
+            GameplayEntityId entityId,
+            int attributeId,
+            int delta,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.AddComponentAttribute,
+                targetId: entityId.Index,
+                payload0: entityId.Generation,
+                payload1: attributeId,
+                payload2: delta,
+                traceId: traceId);
+        }
     }
 }

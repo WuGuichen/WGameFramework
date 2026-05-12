@@ -7,5 +7,7 @@ namespace MxFramework.Gameplay
         public const int CreateComponentEntity = 1001003;
         public const int DestroyComponentEntity = 1001004;
         public const int SpawnComponentEntity = 1001005;
+        public const int SetComponentAttribute = 1001006;
+        public const int AddComponentAttribute = 1001007;
     }
 }

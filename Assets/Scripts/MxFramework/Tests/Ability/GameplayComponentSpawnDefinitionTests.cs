@@ -45,6 +45,24 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void SpawnDefinition_RejectsDuplicateInitializerSchemaId()
+        {
+            Assert.Throws<System.ArgumentException>(() => new GameplayComponentSpawnDefinition(
+                ActorDefinitionId,
+                "mxframework.gameplay.test.duplicate_initializer",
+                1,
+                new IGameplayComponentSpawnInitializer[]
+                {
+                    new GameplayComponentSpawnInitializer<GameplayIdentityComponent>(
+                        GameplayCoreComponentSchemaDescriptors.IdentityStableId,
+                        new GameplayIdentityComponent(ActorDefinitionId)),
+                    new GameplayComponentSpawnInitializer<GameplayTeamComponent>(
+                        GameplayCoreComponentSchemaDescriptors.IdentityStableId,
+                        new GameplayTeamComponent(1))
+                }));
+        }
+
+        [Test]
         public void SpawnCommand_CreatesEntityWithInitialComponents()
         {
             GameplayComponentWorld world = CreateWorld(registerSchemas: false);
