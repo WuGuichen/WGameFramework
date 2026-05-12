@@ -183,8 +183,21 @@ dotnet test MxFramework.Tests.csproj --no-build --filter GameplayComponent
 - 文档明确：
   - 当前 component gameplay runtime v0 已 closed。
   - 旧 `RuntimeEntity` route 仍保留。
+  - Component ability rules policy 已锁定：cost 在 effect 前提交；effect failure 不自动 refund；cooldown 只在 effect success 后启动；过期 cooldown 是 cast 前惰性清理。
   - 下一阶段才考虑 Buff / Modifier、Combat、cast time、UI / playable demo。
 - 提交消息能看出是 v0 closeout，而不是继续扩功能。
+
+## Known follow-ups
+
+这些是 v0 closeout 后保留的已知语义和后续工作，不阻塞本阶段验收：
+
+- `GameplayComponentAbilityRequestStore` 是 transient input store，不进入 ComponentWorld hash / SaveState；save 发生在 request 入队后、command 执行前时，pending request 不由 ComponentWorld SaveState 捕获。
+- `GameplayComponentAbilityRequestStore.Clear()` 只清 pending requests，不重置 allocator index / generation；旧 handle 在 clear 后仍然失效。
+- `GameplayRuntimeEvent` 已承载旧 Ability、component entity、attribute、component ability、command rejection 等多类事件；后续 target list、cost/cooldown detail、cast time、interrupt 等复杂信息不应继续无边界加字段，优先引入 event detail / custom state / typed event stream。
+- Component ability cost policy 当前是 `ConsumeOnCastAttempt` 风格：cost 在 ability effect 前提交，effect failure 不退还 cost；cooldown 只在 effect success 后启动。
+- Cooldown cleanup 当前是 cast 前惰性清理；闲置 entity 的过期 cooldown 可能继续留在 hash / SaveState 中，直到该 entity cast 或未来 cleanup system 处理。
+- Enemy HP 到 0 不会自动触发 death；vertical slice 通过测试 helper 标记 lifecycle `PendingDestroy`，完整 DeathSystem 属于后续任务。
+- Spawn definition、ability registry、request store 都是组合根输入依赖，不是 world state；restore 只恢复 ComponentWorld 结果状态，继续 cast 需要重新提供 runtime registries。
 
 ## 建议提交策略
 
@@ -218,3 +231,42 @@ Closeout
 ```
 
 原因：当前 runtime v0 已经能跑通测试闭环，下一步最好先做一个可观察、可演示、可诊断的 showcase，再决定继续补 Buff/Combat 哪条业务链。
+
+## Closeout record
+
+日期：2026-05-12
+
+本次 closeout 已确认：
+
+- 09-19 产生的 component runtime source、tests、Unity `.meta` 和文档改动纳入 SVN 提交范围。
+- `Docs/Interfaces/Gameplay.md`、`Docs/README.md`、`Docs/CAPABILITIES.md` 已同步 component runtime v0 能力。
+- `GameplayComponentAbilityRulesTests` 的 request-target fixture 已补齐 `GameplayLifecycleComponent.Alive`，避免 `requireAlive` query 把测试目标按 dead 过滤。
+- 本阶段不新增 Buff / Modifier、Combat bridge、cast timeline 或 showcase UI。
+
+验证结果：
+
+```text
+Tools/GitNexus/gitnexus.sh detect-changes
+  Changes: 51 files, 133 symbols
+  Affected processes: 0
+  Risk level: low
+
+dotnet build MxFramework.Gameplay.csproj --no-restore
+  0 warnings, 0 errors
+
+dotnet build MxFramework.Tests.csproj --no-restore
+  0 errors
+  existing Demo serialization warnings only
+
+dotnet test MxFramework.Tests.csproj --no-build --filter GameplayComponentRuntimeSliceTests
+  exited 0, but Unity-generated project did not enumerate tests outside Unity Test Runner
+
+Unity Test Runner CLI
+  blocked because another Unity Editor instance already had this project open
+
+Temp/ComponentTestRunner
+  Executed 111 component runtime NUnit tests
+  Passed 111
+```
+
+说明：`Temp/ComponentTestRunner` 是 closeout 验证用临时 runner，不属于提交内容。

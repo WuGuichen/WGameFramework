@@ -321,6 +321,7 @@ namespace MxFramework.Tests.Ability
         private static GameplayEntityId CreateActor(GameplayComponentWorld world, int hp, int mana)
         {
             GameplayEntityId entity = world.CreateEntity();
+            world.GetOrCreateStore<GameplayLifecycleComponent>().Set(entity, GameplayLifecycleComponent.Alive);
             world.GetOrCreateStore<GameplayAttributeSetComponent>().Set(
                 entity,
                 new GameplayAttributeSetComponent(
