@@ -217,6 +217,7 @@
 | Gameplay Component State Systems | ✅ v0.1 | `GameplayLifecycleCleanupSystem` 在 Resolution phase 清理 `PendingDestroy` component entity |
 | Gameplay Component Spawn Definitions | ✅ v0.1 | `GameplayComponentSpawnRegistry` / `GameplayComponentSpawnCommandSystem` 按显式 definition 创建带初始 components 的 entity |
 | Gameplay Component Attribute Runtime | ✅ v0.1 | `GameplayAttributeSetComponent` / `GameplayAttributeCommandSystem` 提供 component-native 属性状态、事件、hash 和 SaveState |
+| Gameplay Component Ability Command Bridge | ✅ v0.1 | `GameplayComponentAbilityCommandSystem` / `GameplayComponentAttributeDeltaAbility` 支持 component entity 执行 self attribute delta ability |
 | Config Driven Ability | ✅ v0.3 | `_useAbilitySlice = true` + `_useConfigDrivenAbility = true`，通过命名化 `AbilityEffectConfig` 驱动 Strike / Ignite |
 | Gameplay Diagnostic Snapshot | ✅ v0.1 | `GameplayDiagnosticSnapshotBuilder.Build(...)` 汇总 Entity / Attribute / Buff / Modifier / Ability / Event 只读诊断状态 |
 | Gameplay World Diagnostics | ✅ v0.1 | `GameplayWorldDiagnostics` / `GameplayWorldDiagnosticsSummary` |

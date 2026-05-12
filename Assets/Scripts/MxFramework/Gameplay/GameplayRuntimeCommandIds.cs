@@ -9,5 +9,6 @@ namespace MxFramework.Gameplay
         public const int SpawnComponentEntity = 1001005;
         public const int SetComponentAttribute = 1001006;
         public const int AddComponentAttribute = 1001007;
+        public const int CastComponentAbility = 1001008;
     }
 }

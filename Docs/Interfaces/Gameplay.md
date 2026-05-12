@@ -52,6 +52,9 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayAttributeValue` / `GameplayAttributeSetComponent` | Component-native int attribute state，按 attribute id 稳定排序 |
 | `GameplayAttributeCommandSystem` / `GameplayAttributeEvents` | 处理 component entity attribute set/add command，并输出 attribute changed event |
 | `GameplayAttributeComponentSchemaDescriptors` | Attribute set diagnostics、hash 和 SaveState schema adapters |
+| `IGameplayComponentAbility` / `GameplayComponentAbilityRegistry` | Component-native ability 定义和稳定 id registry，不依赖旧 `RuntimeEntity` |
+| `GameplayComponentAttributeDeltaAbility` | v0 最小 component ability，对 self target 的 attribute current value 应用 delta |
+| `GameplayComponentAbilityCommandSystem` / `GameplayComponentAbilityEvents` | 处理 `CastComponentAbility` command，读写 component world 并输出 ability runtime event |
 | `GameplayIdentityComponent` | ECS-style component runtime 的配置身份数据 |
 | `GameplayTeamComponent` | ECS-style team 数据，复用 `GameplayTeamRelations` |
 | `GameplayLifecycleComponent` / `GameplayLifecycleState` | ECS-style lifecycle state 数据 |
@@ -216,7 +219,7 @@ Component store v0：
 - `GameplayComponentWorldHashContributor` 通过 schema registry 接入 `RuntimeHashCombiner`，按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
 - `GameplayComponentWorldSaveStateProvider` 通过 `RuntimeModuleSaveState.CustomState.PayloadJson` 保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、missing adapter、unsupported version 或 invalid entity id 返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
-- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`；component spawn definition 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_14_COMPONENT_SPAWN_DEFINITIONS.md`；component attribute runtime 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_15_COMPONENT_ATTRIBUTE_RUNTIME.md`。
+- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`；component spawn definition 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_14_COMPONENT_SPAWN_DEFINITIONS.md`；component attribute runtime 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_15_COMPONENT_ATTRIBUTE_RUNTIME.md`；component ability command bridge 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_16_COMPONENT_ABILITY_COMMAND_BRIDGE.md`。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Component attribute runtime v0：
@@ -226,12 +229,24 @@ Component attribute runtime v0：
 - Attribute set mutate API 返回新的 component value；system 必须把更新后的 value 写回 `GameplayComponentStore<GameplayAttributeSetComponent>`。
 - `SetBaseValue` 保留已有 current value；`SetCurrentValue` 在属性不存在时创建 base/current 都等于目标 current；`AddCurrentValue` 在属性存在时累加 current。
 - `GameplayAttributeCommandSystem` 运行在 `GameplaySystemPhase.Command`，默认 priority 为 `40`，在 spawn command system 之后、unsupported command system 之前。
-- `SetComponentAttribute` command 使用 `targetId=entity.index`、`payload0=entity.generation`、`payload1=attributeId`、`payload2=value`；缺少 attribute set 时可以创建新 set。
-- `AddComponentAttribute` command 使用相同 payload 形态，`payload2=delta`；缺少 attribute set 时会拒绝，避免把未知属性从 0 隐式创建为 delta。
+- `SetComponentAttribute` command 使用 `targetId=entity.index`、`payload0=entity.generation`、`payload1=attributeId`、`payload2=value`；语义是 set current value，已有 attribute 的 `BaseValue` 不变，缺少 attribute set / attribute 时会创建 base/current 都等于 value 的 attribute。
+- `AddComponentAttribute` command 使用相同 payload 形态，`payload2=delta`；缺少 attribute set 或 attribute id 时会拒绝，避免把未知属性从 0 隐式创建为 delta。
 - 成功更新属性会输出 `GameplayRuntimeEventType.ComponentAttributeChanged`，并写入 `AttributeId`、`OldAttributeValue`、`NewAttributeValue` 和 `AttributeDelta`。
 - `GameplayAttributeComponentSchemaDescriptors` 提供 attribute set diagnostics、runtime hash 和 SaveState adapters；payload 使用稳定 JSON 字段名，不序列化旧 `AttributeStore`。
 - Spawn definition 可以通过 `GameplayComponentSpawnInitializer<GameplayAttributeSetComponent>` 初始化 attribute set；spawn definition 本身仍不是 world state。
 - 旧 `RuntimeEntity.AttributeStore` 继续服务 v0 Ability / Demo；新 component runtime 不与旧 AttributeStore 双写同一个玩法对象状态。
+
+Component ability command bridge v0：
+
+- `CastComponentAbility` 是 component runtime 专用 command，不复用旧 `CastAbility` 的裸 int entity payload。
+- `GameplayRuntimeCommandFactory.CastComponentAbility` 使用 `targetId=caster.index`、`payload0=caster.generation`、`payload1=abilityId`、`payload2=0`；v0 不把 candidate generation 偷塞进 `traceId`，非 0 `payload2` 会被拒绝。
+- `GameplayComponentAbilityRegistry` 只保存 component-native abilities，拒绝 `AbilityId <= 0` 和重复 id，snapshot 按 ability id 升序输出；registry 不是 world state，不进入 hash / SaveState。
+- `IGameplayComponentAbility.Cast` 只接收 `GameplayComponentAbilityContext`，上下文包含 `RuntimeFrame`、`GameplayComponentWorld`、caster `GameplayEntityId`、target ids 和 trace id，不依赖 `AbilityContext` / `IRuntimeEntity`。
+- `GameplayComponentAttributeDeltaAbility` 是 v0 最小 effect adapter，只支持 `GameplayComponentTargetMode.Self`，读取 self entity 的 `GameplayAttributeSetComponent`，对已有 attribute 执行 current value delta 并写回 component store。
+- 缺少 caster、ability、attribute set / attribute 或 effect overflow 会返回结构化失败结果，并由 command system 输出 `AbilityCastFailed` event。
+- 成功 cast 会输出 `AbilityCastSucceeded / CastComponentAbility`，并把 component entity id 写入 `GameplayRuntimeEvent.ComponentEntityId`；attribute delta 同时输出 `ComponentAttributeChanged` event。
+- Ability 修改后的 attribute state 通过 `GameplayAttributeComponentSchemaDescriptors` 参与 component world hash / SaveState；Restore 只恢复结果状态，不依赖 ability registry。
+- v0 不支持 explicit candidate target、cooldown、cost、cast time、buff / modifier pipeline 或旧 `IAbility` adapter；这些能力必须后续用明确 adapter / target resolver 扩展，不能让旧 `RuntimeEntity` 和 component store 双写同一状态。
 
 Component spawn definitions v0：
 
@@ -292,6 +307,7 @@ Gameplay command systems v0：
 - `GameplayComponentEntityCommandSystem` 处理 `CreateComponentEntity` / `DestroyComponentEntity`，读写 `GameplayComponentWorld` generation entity，并输出 `ComponentEntityCreated` / `ComponentEntityDestroyed` / `CommandRejected` event。
 - `GameplayComponentSpawnCommandSystem` 处理 `SpawnComponentEntity`，按 `GameplayComponentSpawnRegistry` 中的 definition 创建带初始 components 的 component entity，并输出 `ComponentEntityCreated / SpawnComponentEntity` 或 `CommandRejected` event。
 - `GameplayAttributeCommandSystem` 处理 `SetComponentAttribute` / `AddComponentAttribute`，读写 `GameplayAttributeSetComponent` 并输出 `ComponentAttributeChanged` 或 `CommandRejected` event。
+- `GameplayComponentAbilityCommandSystem` 处理 `CastComponentAbility`，通过 `GameplayComponentAbilityRegistry` 调用 component-native ability，并输出 `AbilityCastSucceeded` / `AbilityCastFailed` event。
 - `GameplayComponentEntityCommandSystem` 依赖 `GameplaySystemContext.ComponentWorld`。缺少 component world 时输出 `CommandRejected / MissingComponentWorld`，不抛出 NRE。
 - `DestroyComponentEntity` command 使用 `payload0=index`、`payload1=generation`，拒绝 stale / invalid id，避免误删复用后的新 entity。
 - `GameplayRuntimeEvent.ComponentEntityId` 是 component runtime 的 generation-safe event id；旧 `TargetEntityId` 仍服务 v0 `RuntimeEntity` / Ability 事件。事件构造会校验 component entity index / generation 必须同时为 default 或有效值，需要安全读取时使用 `TryGetComponentEntityId`。

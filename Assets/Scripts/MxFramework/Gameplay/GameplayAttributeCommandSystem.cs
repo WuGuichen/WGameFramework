@@ -83,6 +83,11 @@ namespace MxFramework.Gameplay
                 EnqueueRejected(context, command, entityId, GameplayAttributeEvents.MissingAttributeSetReason);
                 return;
             }
+            if (isAdd && !attributes.TryGet(attributeId, out _))
+            {
+                EnqueueRejected(context, command, entityId, GameplayAttributeEvents.MissingAttributeReason);
+                return;
+            }
 
             int oldValue = attributes.GetCurrentValueOrDefault(attributeId);
             GameplayAttributeSetComponent updated;

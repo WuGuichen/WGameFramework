@@ -121,5 +121,23 @@ namespace MxFramework.Gameplay
                 payload2: delta,
                 traceId: traceId);
         }
+
+        public static RuntimeCommand CastComponentAbility(
+            RuntimeFrame frame,
+            GameplayEntityId casterEntityId,
+            int abilityId,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.CastComponentAbility,
+                targetId: casterEntityId.Index,
+                payload0: casterEntityId.Generation,
+                payload1: abilityId,
+                payload2: 0,
+                traceId: traceId);
+        }
     }
 }

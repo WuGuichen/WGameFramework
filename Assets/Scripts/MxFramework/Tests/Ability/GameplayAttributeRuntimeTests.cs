@@ -223,6 +223,52 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void AddAttributeCommand_RejectsMissingAttribute()
+        {
+            GameplayComponentWorld world = CreateWorld(registerSchemas: false);
+            GameplayEntityId entity = world.CreateEntity();
+            world.GetOrCreateStore<GameplayAttributeSetComponent>().Set(
+                entity,
+                new GameplayAttributeSetComponent(new GameplayAttributeValue(Hp, 100, 100)));
+            GameplayRuntimeModule module = CreateModule(world);
+            module.CommandBuffer.Enqueue(GameplayRuntimeCommandFactory.AddComponentAttribute(
+                RuntimeFrame.Zero,
+                entity,
+                Defense,
+                5));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            var events = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(1, module.DrainEvents(RuntimeFrame.Zero, events));
+            Assert.AreEqual(GameplayRuntimeEventType.CommandRejected, events[0].Type);
+            Assert.AreEqual(GameplayAttributeEvents.MissingAttributeReason, events[0].Reason);
+        }
+
+        [Test]
+        public void AddAttributeCommand_RejectsOverflow()
+        {
+            GameplayComponentWorld world = CreateWorld(registerSchemas: false);
+            GameplayEntityId entity = world.CreateEntity();
+            world.GetOrCreateStore<GameplayAttributeSetComponent>().Set(
+                entity,
+                new GameplayAttributeSetComponent(new GameplayAttributeValue(Hp, 100, int.MaxValue)));
+            GameplayRuntimeModule module = CreateModule(world);
+            module.CommandBuffer.Enqueue(GameplayRuntimeCommandFactory.AddComponentAttribute(
+                RuntimeFrame.Zero,
+                entity,
+                Hp,
+                1));
+
+            module.Tick(new RuntimeTickContext(0, 0d, 0d, RuntimeTickStage.Simulation));
+
+            var events = new List<GameplayRuntimeEvent>();
+            Assert.AreEqual(1, module.DrainEvents(RuntimeFrame.Zero, events));
+            Assert.AreEqual(GameplayRuntimeEventType.CommandRejected, events[0].Type);
+            Assert.AreEqual(GameplayAttributeEvents.AttributeUpdateFailedReason, events[0].Reason);
+        }
+
+        [Test]
         public void AttributeCommand_RejectsStaleComponentEntity()
         {
             GameplayComponentWorld world = CreateWorld(registerSchemas: false);

@@ -8,6 +8,7 @@ namespace MxFramework.Gameplay
         public const string InvalidComponentEntityReason = "InvalidComponentEntity";
         public const string MissingComponentEntityReason = "MissingComponentEntity";
         public const string MissingAttributeSetReason = "MissingAttributeSet";
+        public const string MissingAttributeReason = "MissingAttribute";
         public const string InvalidAttributeIdReason = "InvalidAttributeId";
         public const string AttributeUpdateFailedReason = "AttributeUpdateFailed";
     }
