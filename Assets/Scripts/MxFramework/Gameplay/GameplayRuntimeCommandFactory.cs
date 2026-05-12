@@ -139,5 +139,23 @@ namespace MxFramework.Gameplay
                 payload2: 0,
                 traceId: traceId);
         }
+
+        public static RuntimeCommand CastComponentAbilityRequest(
+            RuntimeFrame frame,
+            GameplayComponentAbilityRequestHandle requestHandle,
+            int abilityId,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.CastComponentAbilityRequest,
+                targetId: requestHandle.Index,
+                payload0: requestHandle.Index,
+                payload1: requestHandle.Generation,
+                payload2: abilityId,
+                traceId: traceId);
+        }
     }
 }

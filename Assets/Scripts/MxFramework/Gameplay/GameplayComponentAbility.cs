@@ -23,7 +23,8 @@ namespace MxFramework.Gameplay
 
     public enum GameplayComponentTargetMode
     {
-        Self = 0
+        Self = 0,
+        ExplicitSingle = 1
     }
 
     public readonly struct GameplayComponentAbilityContext
@@ -33,7 +34,8 @@ namespace MxFramework.Gameplay
             GameplayComponentWorld world,
             GameplayEntityId casterEntityId,
             IReadOnlyList<GameplayEntityId> targetEntityIds,
-            string traceId)
+            string traceId,
+            int commandId = 0)
         {
             Frame = frame;
             World = world ?? throw new ArgumentNullException(nameof(world));
@@ -43,6 +45,7 @@ namespace MxFramework.Gameplay
             CasterEntityId = casterEntityId;
             TargetEntityIds = targetEntityIds ?? Array.Empty<GameplayEntityId>();
             TraceId = traceId ?? string.Empty;
+            CommandId = commandId == 0 ? GameplayRuntimeCommandIds.CastComponentAbility : commandId;
         }
 
         public RuntimeFrame Frame { get; }
@@ -50,6 +53,7 @@ namespace MxFramework.Gameplay
         public GameplayEntityId CasterEntityId { get; }
         public IReadOnlyList<GameplayEntityId> TargetEntityIds { get; }
         public string TraceId { get; }
+        public int CommandId { get; }
     }
 
     public sealed class GameplayComponentAbilityResult

@@ -8,8 +8,11 @@ namespace MxFramework.Gameplay
         public const string InvalidCasterReason = "InvalidComponentAbilityCaster";
         public const string MissingCasterReason = "MissingComponentAbilityCaster";
         public const string MissingAbilityReason = "MissingComponentAbility";
+        public const string MissingRequestReason = "MissingComponentAbilityRequest";
+        public const string InvalidRequestReason = "InvalidComponentAbilityRequest";
         public const string MissingAttributeSetReason = "MissingAttributeSet";
         public const string MissingTargetReason = "MissingComponentAbilityTarget";
+        public const string NoValidTargetReason = "NoValidComponentAbilityTarget";
         public const string EffectFailedReason = "ComponentAbilityEffectFailed";
     }
 }

@@ -9,13 +9,19 @@ namespace MxFramework.Gameplay
         public const string DefaultSystemId = "mxframework.gameplay.command.component_ability";
 
         private readonly GameplayComponentAbilityRegistry _abilityRegistry;
+        private readonly GameplayComponentAbilityRequestStore _requestStore;
+        private readonly GameplayComponentTargetingService _targetingService;
 
         public GameplayComponentAbilityCommandSystem(
             GameplayComponentAbilityRegistry abilityRegistry,
+            GameplayComponentAbilityRequestStore requestStore = null,
+            GameplayComponentTargetingService targetingService = null,
             string systemId = DefaultSystemId,
             int priority = 50)
         {
             _abilityRegistry = abilityRegistry ?? throw new ArgumentNullException(nameof(abilityRegistry));
+            _requestStore = requestStore;
+            _targetingService = targetingService ?? new GameplayComponentTargetingService();
             SystemId = systemId ?? string.Empty;
             Priority = priority;
         }
@@ -36,11 +42,18 @@ namespace MxFramework.Gameplay
             for (int i = 0; i < commands.Count; i++)
             {
                 RuntimeCommand command = commands[i];
-                if (command.CommandId != GameplayRuntimeCommandIds.CastComponentAbility)
+                if (command.CommandId == GameplayRuntimeCommandIds.CastComponentAbility)
+                {
+                    ExecuteCast(context, command);
+                    context.CommandState.MarkHandled(command);
                     continue;
+                }
 
-                ExecuteCast(context, command);
-                context.CommandState.MarkHandled(command);
+                if (command.CommandId == GameplayRuntimeCommandIds.CastComponentAbilityRequest)
+                {
+                    ExecuteRequestCast(context, command);
+                    context.CommandState.MarkHandled(command);
+                }
             }
         }
 
@@ -113,7 +126,176 @@ namespace MxFramework.Gameplay
                 componentWorld,
                 casterEntityId,
                 new[] { casterEntityId },
-                command.TraceId));
+                command.TraceId,
+                command.CommandId));
+            if (result == null)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    GameplayComponentAbilityEvents.EffectFailedReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            GameplayEntityId eventEntityId = ResolveEventEntity(result, casterEntityId);
+            context.Events.Enqueue(context.Frame, new GameplayRuntimeEvent(
+                context.Frame,
+                result.Success ? GameplayRuntimeEventType.AbilityCastSucceeded : GameplayRuntimeEventType.AbilityCastFailed,
+                command.CommandId,
+                casterEntityId: 0,
+                abilityId: abilityId,
+                targetEntityId: eventEntityId.Index,
+                failureCode: result.Success ? GameplayAbilityRuntimeFailureCode.None : MapFailureCode(result.FailureCode),
+                reason: result.Success ? GameplayComponentAbilityEvents.CastComponentAbilityReason : result.FailureReason,
+                traceId: command.TraceId,
+                componentEntityIndex: eventEntityId.Index,
+                componentEntityGeneration: eventEntityId.Generation));
+        }
+
+        private void ExecuteRequestCast(GameplaySystemContext context, RuntimeCommand command)
+        {
+            GameplayComponentWorld componentWorld = context.ComponentWorld;
+            if (componentWorld == null)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    default,
+                    command.Payload2,
+                    GameplayComponentAbilityEvents.MissingComponentWorldReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            if (_requestStore == null)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    default,
+                    command.Payload2,
+                    GameplayComponentAbilityEvents.MissingRequestReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            if (!TryReadRequestHandle(command, out GameplayComponentAbilityRequestHandle handle))
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    default,
+                    command.Payload2,
+                    GameplayComponentAbilityEvents.InvalidRequestReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            if (!_requestStore.TryGet(handle, out GameplayComponentAbilityRequest request))
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    default,
+                    command.Payload2,
+                    GameplayComponentAbilityEvents.MissingRequestReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            try
+            {
+                ExecuteResolvedRequestCast(context, command, componentWorld, handle, request);
+            }
+            finally
+            {
+                _requestStore.Remove(handle);
+            }
+        }
+
+        private void ExecuteResolvedRequestCast(
+            GameplaySystemContext context,
+            RuntimeCommand command,
+            GameplayComponentWorld componentWorld,
+            GameplayComponentAbilityRequestHandle handle,
+            GameplayComponentAbilityRequest request)
+        {
+            int abilityId = command.Payload2;
+            if (abilityId != request.AbilityId)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    request.CasterEntityId,
+                    abilityId,
+                    GameplayComponentAbilityEvents.InvalidRequestReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            GameplayEntityId casterEntityId = request.CasterEntityId;
+            if (!componentWorld.IsAlive(casterEntityId))
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    GameplayComponentAbilityEvents.MissingCasterReason,
+                    GameplayAbilityRuntimeFailureCode.MissingCaster);
+                return;
+            }
+
+            if (!_abilityRegistry.TryGet(abilityId, out IGameplayComponentAbility ability))
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    GameplayComponentAbilityEvents.MissingAbilityReason,
+                    GameplayAbilityRuntimeFailureCode.MissingAbility);
+                return;
+            }
+
+            var candidates = new List<GameplayComponentTargetCandidate>();
+            if (!TryBuildCandidates(componentWorld, request, candidates))
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    GameplayComponentAbilityEvents.MissingTargetReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            GameplayComponentTargetQuery query = request.TargetQuery ?? CreateDefaultQuery(componentWorld, casterEntityId);
+            GameplayComponentTargetingResult targetingResult = _targetingService.Select(query, candidates);
+            if (!targetingResult.HasTargets)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    GameplayComponentAbilityEvents.NoValidTargetReason,
+                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
+                return;
+            }
+
+            GameplayEntityId[] targetIds = CopyTargetIds(targetingResult.SelectedTargets);
+            GameplayComponentAbilityResult result = ability.Cast(new GameplayComponentAbilityContext(
+                context.Frame,
+                componentWorld,
+                casterEntityId,
+                targetIds,
+                command.TraceId,
+                command.CommandId));
             if (result == null)
             {
                 EnqueueFailure(
@@ -163,6 +345,68 @@ namespace MxFramework.Gameplay
 
             casterEntityId = new GameplayEntityId(index, generation);
             return true;
+        }
+
+        private static bool TryReadRequestHandle(RuntimeCommand command, out GameplayComponentAbilityRequestHandle handle)
+        {
+            int index = command.Payload0;
+            int generation = command.Payload1;
+            if (index <= 0 || generation <= 0 || command.TargetId != index || command.Payload2 <= 0)
+            {
+                handle = default;
+                return false;
+            }
+
+            handle = new GameplayComponentAbilityRequestHandle(index, generation);
+            return true;
+        }
+
+        private static bool TryBuildCandidates(
+            GameplayComponentWorld world,
+            GameplayComponentAbilityRequest request,
+            IList<GameplayComponentTargetCandidate> output)
+        {
+            IReadOnlyList<GameplayEntityId> candidateIds = request.CandidateEntityIds;
+            if (candidateIds.Count == 0)
+            {
+                GameplayComponentTargetCandidates.CopyFromWorld(world, output);
+                return true;
+            }
+
+            for (int i = 0; i < candidateIds.Count; i++)
+            {
+                if (!GameplayComponentTargetCandidates.TryCreateFromWorld(world, candidateIds[i], out GameplayComponentTargetCandidate candidate))
+                    return false;
+
+                output.Add(candidate);
+            }
+
+            return true;
+        }
+
+        private static GameplayComponentTargetQuery CreateDefaultQuery(
+            GameplayComponentWorld world,
+            GameplayEntityId casterEntityId)
+        {
+            int casterTeamId = 0;
+            if (world.TryGetStore(out GameplayComponentStore<GameplayTeamComponent> teams) &&
+                teams.TryGet(casterEntityId, out GameplayTeamComponent team))
+            {
+                casterTeamId = team.TeamId;
+            }
+
+            return new GameplayComponentTargetQuery(casterEntityId, casterTeamId, requireAlive: true);
+        }
+
+        private static GameplayEntityId[] CopyTargetIds(IReadOnlyList<GameplayComponentTargetCandidate> targets)
+        {
+            if (targets == null || targets.Count == 0)
+                return Array.Empty<GameplayEntityId>();
+
+            var ids = new GameplayEntityId[targets.Count];
+            for (int i = 0; i < targets.Count; i++)
+                ids[i] = targets[i].EntityId;
+            return ids;
         }
 
         private static GameplayAbilityRuntimeFailureCode MapFailureCode(GameplayComponentAbilityFailureCode failureCode)

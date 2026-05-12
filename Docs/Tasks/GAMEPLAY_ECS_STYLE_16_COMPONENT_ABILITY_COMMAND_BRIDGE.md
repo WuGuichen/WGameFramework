@@ -112,7 +112,7 @@ payload2 = candidate.index
 - no explicit candidate
 - 或通过 command registry / side request store 支持 candidate index+generation
 
-更推荐第一版 command payload：
+第一版 command payload：
 
 ```text
 targetId = caster.index
@@ -121,7 +121,7 @@ payload1 = abilityId
 payload2 = 0
 ```
 
-然后只做 self / definition-resolved target。候选目标需要完整 id 时，下一批再做 `RuntimeCommandRegistry` payload schema 或 `GameplayComponentAbilityRequestStore`。
+v0 只支持 self target。`payload2` 必须为 `0`，非 `0` payload 必须被拒绝为 invalid command payload。候选目标需要完整 id 时，下一批再做 `RuntimeCommandRegistry` payload schema、side request store 或新的 command schema，不允许 ad-hoc 复用 `payload2`，也不允许把 generation 偷塞进 `traceId`。
 
 ## Ability Definition
 
@@ -292,6 +292,15 @@ GameplayRuntimeEventType.AbilityCastFailed
 - component entity id 先写 caster。
 - target ids 通过 ability result / diagnostics 观察。
 - 后续如有需要新增 event detail store，不要把所有字段塞进 `GameplayRuntimeEvent`。
+
+成功 cast 的事件顺序固定为：
+
+```text
+ComponentAttributeChanged
+AbilityCastSucceeded
+```
+
+原因是 component ability 的 effect event 在 `IGameplayComponentAbility.Cast()` 内先入队，`GameplayComponentAbilityCommandSystem` 在 ability 返回后再写 final cast event。UI / Audio / Diagnostics 如果需要表现具体数值变化，应优先监听 effect event；final ability event 用于表达 cast 成功 / 失败边界。
 
 ## Reason 常量
 

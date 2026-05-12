@@ -187,6 +187,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| 0.6.25 | 2026-05-12 | 新增 Gameplay Component Ability Targeting v0，支持 generation-safe request target、team/lifecycle/tag/status filter 和 request cast |
 | 0.6.24 | 2026-05-12 | 新增 Gameplay Component Ability Command Bridge v0，支持 component entity 通过 `CastComponentAbility` 执行 self attribute delta ability |
 | 0.6.23 | 2026-05-12 | 新增 Gameplay Component Attribute Runtime v0，支持 component-native attribute set、attribute commands、events、hash 和 SaveState |
 | 0.6.22 | 2026-05-12 | 新增 Gameplay Component Spawn Definitions v0，支持按显式 definition 创建带初始 components 的 component entity |

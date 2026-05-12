@@ -10,5 +10,6 @@ namespace MxFramework.Gameplay
         public const int SetComponentAttribute = 1001006;
         public const int AddComponentAttribute = 1001007;
         public const int CastComponentAbility = 1001008;
+        public const int CastComponentAbilityRequest = 1001009;
     }
 }

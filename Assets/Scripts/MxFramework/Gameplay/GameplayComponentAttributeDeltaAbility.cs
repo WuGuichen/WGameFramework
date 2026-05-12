@@ -18,8 +18,11 @@ namespace MxFramework.Gameplay
                 throw new ArgumentOutOfRangeException(nameof(abilityId), "Component ability id must be greater than zero.");
             if (attributeId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(attributeId), "Gameplay attribute id must be greater than zero.");
-            if (targetMode != GameplayComponentTargetMode.Self)
-                throw new ArgumentOutOfRangeException(nameof(targetMode), "Component ability v0 only supports self target mode.");
+            if (targetMode != GameplayComponentTargetMode.Self &&
+                targetMode != GameplayComponentTargetMode.ExplicitSingle)
+            {
+                throw new ArgumentOutOfRangeException(nameof(targetMode), "Component ability target mode is not supported.");
+            }
 
             AbilityId = abilityId;
             _attributeId = attributeId;
@@ -83,7 +86,7 @@ namespace MxFramework.Gameplay
             context.World.EnqueueEvent(new GameplayRuntimeEvent(
                 context.Frame,
                 GameplayRuntimeEventType.ComponentAttributeChanged,
-                GameplayRuntimeCommandIds.CastComponentAbility,
+                context.CommandId,
                 casterEntityId: 0,
                 abilityId: AbilityId,
                 targetEntityId: targetEntityId.Index,
@@ -105,9 +108,10 @@ namespace MxFramework.Gameplay
 
         private GameplayEntityId ResolveTarget(GameplayComponentAbilityContext context)
         {
-            return _targetMode == GameplayComponentTargetMode.Self
-                ? context.CasterEntityId
-                : default;
+            if (_targetMode == GameplayComponentTargetMode.Self)
+                return context.CasterEntityId;
+
+            return context.TargetEntityIds.Count > 0 ? context.TargetEntityIds[0] : default;
         }
     }
 }
