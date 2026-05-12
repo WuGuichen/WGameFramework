@@ -58,11 +58,21 @@ public sealed class GameplayComponentSchemaRegistry
     public void Register(IGameplayComponentSchemaDescriptor descriptor);
     public bool TryGetByStableId(string stableId, out GameplayComponentSchema schema);
     public bool TryGetByType(Type componentType, out GameplayComponentSchema schema);
+    public bool TryGetDiagnosticWriter<T>(out IGameplayComponentDiagnosticWriter<T> writer)
+        where T : struct, IGameplayComponent;
+    public bool TryGetHashWriter<T>(out IGameplayComponentHashWriter<T> writer)
+        where T : struct, IGameplayComponent;
+    public bool TryGetSaveStateAdapter<T>(out IGameplayComponentSaveStateAdapter<T> adapter)
+        where T : struct, IGameplayComponent;
     public GameplayComponentSchema[] CreateSnapshot();
 }
 ```
 
 `GameplayComponentWorld` 后续可以持有一个 `GameplayComponentSchemaRegistry`，作为 component runtime 的 metadata 入口。但 schema registry 不应自动扫描程序集，也不应通过反射推断 field schema；组合根或模块显式注册 descriptor。
+
+同一 component schema 在 registry 中只能有一个 schema owner。Diagnostics、hash、SaveState capability 可以由同一个 descriptor 同时实现多个接口，也可以由 registry 在同一个 schema entry 下挂载多个 capability adapter；但不得以多个 schema entry 重复注册同一个 `StableId` 或 `ComponentType`。
+
+`CreateSnapshot()` 只暴露 schema metadata，用于 UI、Editor、测试和 agent 观察 registry 状态。真正执行 diagnostics / hash / SaveState 时，executor 必须通过 registry 解析对应 capability adapter，例如 diagnostic writer、hash writer 或 save adapter，而不是只拿 metadata 后自行反射 component value。
 
 ## StableId 规则
 
@@ -181,7 +191,7 @@ Diagnostics / Hash / SaveState 通过 schema registry 解释 component value
 - `GameplayTagComponent` -> `mxframework.gameplay.tags`
 - `GameplayStatusComponent` -> `mxframework.gameplay.statuses`
 
-这些 descriptor 可以先只支持 diagnostics，再逐步接入 hash/save。不要因为某个 core component 暂时没有 save adapter，就让 generic store 走反射序列化。
+这些 descriptor 第一阶段应优先只支持 diagnostics，再逐步接入 hash/save。不要因为某个 core component 看起来简单，就在 schema registry 批次里同时实现 diagnostics/hash/save；也不要因为某个 core component 暂时没有 save adapter，就让 generic store 走反射序列化。
 
 ## 禁止项
 
@@ -199,19 +209,20 @@ Diagnostics / Hash / SaveState 通过 schema registry 解释 component value
 GAMEPLAY_ECS_STYLE_10_COMPONENT_SCHEMA_REGISTRY
   - GameplayComponentSchema
   - GameplayComponentSchemaRegistry
-  - core component descriptors
+  - core component diagnostics descriptors
+  - metadata snapshot / capability adapter lookup
   - duplicate stable id / duplicate type validation
   - snapshot stable ordering tests
 
 GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH
   - ComponentWorld hash contributor
-  - core component hash writers
+  - selected core component hash writers
   - unregistered / unsupported component diagnostics
   - hash ordering regression tests
 
 GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE
   - ComponentWorld save provider / restorer
-  - core component save adapters
+  - selected core component save adapters
   - missing schema / unsupported version errors
   - SaveState JSON roundtrip tests
 ```
@@ -220,6 +231,8 @@ GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE
 
 - 文档明确 component value 必须经 schema 注册后才能参与 diagnostics/hash/save。
 - 文档明确 `StableId`、schema version、diagnostics writer、hash writer、save adapter 的职责。
+- 文档明确同一 component 只有一个 schema entry，多种 capability adapter 挂在同一 entry 下。
+- 文档明确 registry snapshot 只暴露 metadata，runtime executor 需要通过 registry 解析 capability adapter。
 - 文档明确禁止反射 / 泛型 store 直接序列化作为权威保存。
 - `Docs/Interfaces/Gameplay.md` 同步 component schema 边界。
 - `Docs/README.md` 增加任务入口。

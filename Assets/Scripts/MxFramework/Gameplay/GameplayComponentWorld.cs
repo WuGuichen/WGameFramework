@@ -7,20 +7,30 @@ namespace MxFramework.Gameplay
     public sealed class GameplayComponentWorld
     {
         public GameplayComponentWorld()
-            : this(null, null)
+            : this(null, null, null)
         {
         }
 
         public GameplayComponentWorld(
             GameplayComponentRegistry registry,
             RuntimeEventQueue<GameplayRuntimeEvent> events)
+            : this(registry, events, null)
+        {
+        }
+
+        public GameplayComponentWorld(
+            GameplayComponentRegistry registry,
+            RuntimeEventQueue<GameplayRuntimeEvent> events,
+            GameplayComponentSchemaRegistry schemas)
         {
             Registry = registry ?? new GameplayComponentRegistry();
             Events = events ?? new RuntimeEventQueue<GameplayRuntimeEvent>();
+            Schemas = schemas ?? new GameplayComponentSchemaRegistry();
         }
 
         public GameplayComponentRegistry Registry { get; }
         public RuntimeEventQueue<GameplayRuntimeEvent> Events { get; }
+        public GameplayComponentSchemaRegistry Schemas { get; }
         public int CountAlive => Registry.CountAlive;
         public int StoreCount => Registry.StoreCount;
         public int PendingEventCount => Events.PendingCount;

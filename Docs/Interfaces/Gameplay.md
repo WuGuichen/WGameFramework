@@ -43,7 +43,9 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayComponentPair<TPrimary,TSecondary>` / `GameplayComponentQuery` | 稳定 component query helper，支持单组件拷贝和双组件 join |
 | `GameplayComponentWorld` / `GameplayComponentWorldSnapshot` | ECS-style component runtime 组合根，聚合 component registry 和 gameplay runtime event queue |
 | `GameplayComponentWorldDiagnostics` / `GameplayComponentWorldDiagnosticSnapshot` | Component runtime 诊断快照，稳定输出 alive entities、store 摘要和 pending event queue 概要 |
-| `GameplayComponentSchema` / `GameplayComponentSchemaRegistry`（规划） | Component value 的 schema 契约入口，用稳定 id 注册诊断、hash 和 SaveState adapter |
+| `GameplayComponentSchema` / `GameplayComponentSchemaRegistry` | Component value 的 schema 契约入口，用稳定 id 注册诊断、hash 和 SaveState adapter |
+| `GameplayComponentDiagnosticWriter` / `GameplayComponentDiagnosticField` | Component diagnostics capability 的稳定 key/value 输出工具 |
+| `GameplayCoreComponentSchemaDescriptors` | Core component diagnostics schema 注册入口 |
 | `GameplayIdentityComponent` | ECS-style component runtime 的配置身份数据 |
 | `GameplayTeamComponent` | ECS-style team 数据，复用 `GameplayTeamRelations` |
 | `GameplayLifecycleComponent` / `GameplayLifecycleState` | ECS-style lifecycle state 数据 |
@@ -191,12 +193,16 @@ Component store v0：
 - `GameplayComponentQuery.CopyPairs(primary, secondary, output)` 以 primary store 的稳定 entity id 顺序输出交集。
 - Query 方法 append 到调用方 output，不隐式 clear，也不暴露 store 内部容器。
 - `GameplayComponentWorld` 是 component runtime 组合根，聚合 `GameplayComponentRegistry` 和 `RuntimeEventQueue<GameplayRuntimeEvent>`。
+- `GameplayComponentWorld.Schemas` 是 component runtime 的 schema metadata / capability registry，默认存在，也支持组合根注入。
 - `GameplayComponentWorld.Clear()` 清空 component registry state 和 pending events，不处理旧 `GameplayWorld` / `RuntimeEntity`；只应用于 session reset / world reset。
 - `GameplayRuntimeModule.ComponentWorld` 默认存在；module 的 `Events` 与 `ComponentWorld.Events` 是同一个 queue。
 - `GameplayComponentWorldDiagnostics` 输出 component runtime 的结构摘要：alive entity ids、registered store type/count 和 event queue snapshot。
 - Store diagnostics 按 component type full name 稳定排序；当前不保存泛型 component value，不定义 SaveState / ReplayHash schema。
 - Component value 参与 diagnostics / hash / SaveState 前必须先注册显式 schema。Schema 使用长期稳定的 `StableId` 作为权威 component type key，不使用 `Type.FullName`、反射字段顺序或泛型 store 的自动 JSON 形态作为权威格式。
 - Component schema descriptor 负责声明 schema version、诊断 writer、hash writer 和 SaveState adapter。一个 component 可以分阶段只支持 diagnostics，不支持 hash/save。
+- 同一 component 在 schema registry 中只能有一个 schema entry。Diagnostics、hash 和 SaveState capability 可以由同一个 descriptor 实现，也可以挂在同一个 entry 下，但不能用多个 schema entry 重复注册同一 `StableId` 或 `ComponentType`。
+- Registry snapshot 只暴露 schema metadata；真正执行 diagnostics / hash / SaveState 时，executor 必须通过 registry 解析对应 capability adapter，不能拿 metadata 后自行反射 component value。
+- `GameplayCoreComponentSchemaDescriptors.RegisterDiagnostics` 只注册 core diagnostics descriptors；core hash writers 和 SaveState adapters 留给后续 component runtime hash/save 批次。
 - Component runtime hash 后续应按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
 - Component SaveState 后续应保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、unsupported version 或 invalid entity id 必须返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
