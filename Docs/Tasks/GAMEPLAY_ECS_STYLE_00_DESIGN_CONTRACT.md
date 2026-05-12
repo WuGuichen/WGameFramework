@@ -39,7 +39,8 @@ Command-driven Gameplay ECS-style Runtime
 9. System 不直接 drain `RuntimeCommandBuffer`。
 10. EventQueue 不由 Gameplay 内部强制 flush，外部观察者按 frame drain。
 11. Entity destroy 必须由 World / ComponentRegistry / EntityLifecycleSystem 统一清理 registered component stores；单独的 `GameplayEntityLifecycle` 不负责 component cleanup。
-12. 新增 component / system / command handler 必须补测试和接口/任务文档。
+12. Component value 参与 diagnostics / hash / SaveState 前必须通过显式 schema 注册；禁止把泛型 store 或反射字段顺序直接当作权威序列化格式。
+13. 新增 component / system / command handler 必须补测试和接口/任务文档。
 
 ## Source of Truth
 
@@ -151,6 +152,12 @@ GAMEPLAY_ABILITY_03_COMMAND_SYSTEM
   - GameplayRuntimeModule 只做 drain + pipeline runner
   - RuntimeEventQueue 输出结果
   - tests
+
+GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT
+  - 定义 component value schema 注册契约
+  - 定义 diagnostics / hash / SaveState adapter 职责
+  - 明确 StableId / version / payload 边界
+  - 禁止泛型 store 直接反射序列化
 ```
 
 ## Agent 约束

@@ -1,6 +1,6 @@
 # MxFramework 文档索引
 
-> 版本 0.6.14 | 2026-05-11
+> 版本 0.6.17 | 2026-05-12
 >
 > 本目录定义框架的长期设计、接口边界、开发流程和验收标准。
 
@@ -105,6 +105,7 @@
 | `Tasks/GAMEPLAY_ECS_STYLE_06_COMPONENT_WORLD.md` | Gameplay ECS-style 06：新增 GameplayComponentWorld 组合根，聚合 component registry 和 runtime event queue，并接入 GameplaySystemContext。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_07_ENTITY_COMMANDS.md` | Gameplay ECS-style 07：新增 component runtime create/destroy entity commands，使用 generation id 防 stale destroy，并输出 component entity runtime events。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_08_COMPONENT_WORLD_DIAGNOSTICS.md` | Gameplay ECS-style 08：新增 component world diagnostics snapshot，稳定输出 alive entities、store 摘要和 pending event queue 概要。 |
+| `Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md` | Gameplay ECS-style 09：定义 component value schema 契约，明确 diagnostics、hash 和 SaveState adapter 边界，避免泛型 store 直接序列化。 |
 | `Tasks/GAMEPLAY_ABILITY_03_COMMAND_SYSTEM.md` | Gameplay Ability 03：将 CastAbility / DespawnEntity 迁入 command systems，让 GameplayRuntimeModule 只负责 drain、pipeline、event queue 和 world tick。 |
 | `Tasks/GAMEPLAY_ABILITY_04_COMMAND_HANDLED_STATE.md` | Gameplay Ability 04：新增 command handled 状态，让 unsupported system 基于 handled 判断，支持 default pipeline 上扩展自定义 command system。 |
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |
@@ -180,6 +181,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| 0.6.17 | 2026-05-12 | 新增 Gameplay Component Schema 契约文档，固定 component value 注册、诊断、hash 和 SaveState adapter 边界 |
 | 0.6.16 | 2026-05-11 | 更新 agent 小游戏规范：移动、碰撞、拾取、出口和物理查询必须优先使用框架物理 / Motion 模块，Unity Rigidbody/Collider/trigger 只能作为非权威 view-only 辅助；Marble Maze 标记为需重构到框架物理权威 |
 | 0.6.15 | 2026-05-11 | 新增 Marble Maze Playable Demo，验证 Unity Physics adapter 与 RuntimeHost / CommandBuffer / Replay hash / SaveState JSON 的边界；场景资产由 Unity 生成，支持框架 `DefaultInputService` 输入和 UI Toolkit HUD |
 | 0.6.14 | 2026-05-11 | 新增 `AGENT_GAME_CREATION_GUIDE.md`，把 agent 制作小游戏 / Demo 的 API 复用计划、标准分层、禁用项和验收清单设为文档入口 |
