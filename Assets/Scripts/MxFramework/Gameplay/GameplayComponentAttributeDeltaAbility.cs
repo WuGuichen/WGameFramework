@@ -13,6 +13,16 @@ namespace MxFramework.Gameplay
             int attributeId,
             int delta,
             GameplayComponentTargetMode targetMode)
+            : this(abilityId, attributeId, delta, targetMode, null)
+        {
+        }
+
+        public GameplayComponentAttributeDeltaAbility(
+            int abilityId,
+            int attributeId,
+            int delta,
+            GameplayComponentTargetMode targetMode,
+            GameplayComponentAbilityRuleSet rules)
         {
             if (abilityId <= 0)
                 throw new ArgumentOutOfRangeException(nameof(abilityId), "Component ability id must be greater than zero.");
@@ -28,9 +38,11 @@ namespace MxFramework.Gameplay
             _attributeId = attributeId;
             _delta = delta;
             _targetMode = targetMode;
+            Rules = rules ?? GameplayComponentAbilityRuleSet.Empty;
         }
 
         public int AbilityId { get; }
+        public GameplayComponentAbilityRuleSet Rules { get; }
 
         public GameplayComponentAbilityResult Cast(GameplayComponentAbilityContext context)
         {

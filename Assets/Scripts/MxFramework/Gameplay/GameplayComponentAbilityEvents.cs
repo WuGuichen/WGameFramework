@@ -13,6 +13,10 @@ namespace MxFramework.Gameplay
         public const string MissingAttributeSetReason = "MissingAttributeSet";
         public const string MissingTargetReason = "MissingComponentAbilityTarget";
         public const string NoValidTargetReason = "NoValidComponentAbilityTarget";
+        public const string AbilityOnCooldownReason = "ComponentAbilityOnCooldown";
+        public const string InsufficientCostReason = "ComponentAbilityInsufficientCost";
+        public const string InvalidRuleReason = "InvalidComponentAbilityRule";
+        public const string AbilityCostCommittedReason = "ComponentAbilityCostCommitted";
         public const string EffectFailedReason = "ComponentAbilityEffectFailed";
     }
 }

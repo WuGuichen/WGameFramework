@@ -219,6 +219,7 @@
 | Gameplay Component Attribute Runtime | ✅ v0.1 | `GameplayAttributeSetComponent` / `GameplayAttributeCommandSystem` 提供 component-native 属性状态、事件、hash 和 SaveState |
 | Gameplay Component Ability Command Bridge | ✅ v0.1 | `GameplayComponentAbilityCommandSystem` / `GameplayComponentAttributeDeltaAbility` 支持 component entity 执行 self attribute delta ability |
 | Gameplay Component Ability Targeting | ✅ v0.1 | `GameplayComponentTargetingService` / `GameplayComponentAbilityRequestStore` 支持 generation-safe explicit target、team/lifecycle/tag/status filter |
+| Gameplay Component Ability Rules | ✅ v0.1 | `GameplayComponentAbilityRuleSet` / `GameplayAbilityCooldownComponent` 支持 cooldown gate、attribute cost gate、hash 和 SaveState |
 | Config Driven Ability | ✅ v0.3 | `_useAbilitySlice = true` + `_useConfigDrivenAbility = true`，通过命名化 `AbilityEffectConfig` 驱动 Strike / Ignite |
 | Gameplay Diagnostic Snapshot | ✅ v0.1 | `GameplayDiagnosticSnapshotBuilder.Build(...)` 汇总 Entity / Attribute / Buff / Modifier / Ability / Event 只读诊断状态 |
 | Gameplay World Diagnostics | ✅ v0.1 | `GameplayWorldDiagnostics` / `GameplayWorldDiagnosticsSummary` |

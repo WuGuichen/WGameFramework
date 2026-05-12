@@ -121,38 +121,13 @@ namespace MxFramework.Gameplay
                 return;
             }
 
-            GameplayComponentAbilityResult result = ability.Cast(new GameplayComponentAbilityContext(
-                context.Frame,
+            ExecuteAbilityWithRules(
+                context,
+                command,
                 componentWorld,
+                ability,
                 casterEntityId,
-                new[] { casterEntityId },
-                command.TraceId,
-                command.CommandId));
-            if (result == null)
-            {
-                EnqueueFailure(
-                    context,
-                    command,
-                    casterEntityId,
-                    abilityId,
-                    GameplayComponentAbilityEvents.EffectFailedReason,
-                    GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
-                return;
-            }
-
-            GameplayEntityId eventEntityId = ResolveEventEntity(result, casterEntityId);
-            context.Events.Enqueue(context.Frame, new GameplayRuntimeEvent(
-                context.Frame,
-                result.Success ? GameplayRuntimeEventType.AbilityCastSucceeded : GameplayRuntimeEventType.AbilityCastFailed,
-                command.CommandId,
-                casterEntityId: 0,
-                abilityId: abilityId,
-                targetEntityId: eventEntityId.Index,
-                failureCode: result.Success ? GameplayAbilityRuntimeFailureCode.None : MapFailureCode(result.FailureCode),
-                reason: result.Success ? GameplayComponentAbilityEvents.CastComponentAbilityReason : result.FailureReason,
-                traceId: command.TraceId,
-                componentEntityIndex: eventEntityId.Index,
-                componentEntityGeneration: eventEntityId.Generation));
+                new[] { casterEntityId });
         }
 
         private void ExecuteRequestCast(GameplaySystemContext context, RuntimeCommand command)
@@ -288,7 +263,44 @@ namespace MxFramework.Gameplay
                 return;
             }
 
-            GameplayEntityId[] targetIds = CopyTargetIds(targetingResult.SelectedTargets);
+            ExecuteAbilityWithRules(
+                context,
+                command,
+                componentWorld,
+                ability,
+                casterEntityId,
+                CopyTargetIds(targetingResult.SelectedTargets));
+        }
+
+        private void ExecuteAbilityWithRules(
+            GameplaySystemContext context,
+            RuntimeCommand command,
+            GameplayComponentWorld componentWorld,
+            IGameplayComponentAbility ability,
+            GameplayEntityId casterEntityId,
+            IReadOnlyList<GameplayEntityId> targetIds)
+        {
+            int abilityId = ability.AbilityId;
+            GameplayComponentAbilityRules.RemoveExpiredCooldowns(componentWorld, casterEntityId, context.Frame);
+
+            GameplayComponentAbilityRuleResult ruleResult = GameplayComponentAbilityRules.Evaluate(
+                componentWorld,
+                casterEntityId,
+                abilityId,
+                ability.Rules,
+                context.Frame);
+            if (!ruleResult.Success)
+            {
+                EnqueueFailure(
+                    context,
+                    command,
+                    casterEntityId,
+                    abilityId,
+                    ruleResult.Reason,
+                    MapFailureCode(ruleResult.FailureCode));
+                return;
+            }
+
             GameplayComponentAbilityResult result = ability.Cast(new GameplayComponentAbilityContext(
                 context.Frame,
                 componentWorld,
@@ -306,6 +318,29 @@ namespace MxFramework.Gameplay
                     GameplayComponentAbilityEvents.EffectFailedReason,
                     GameplayAbilityRuntimeFailureCode.AbilityCastFailed);
                 return;
+            }
+
+            if (result.Success)
+            {
+                GameplayComponentAbilityRuleResult commitResult = GameplayComponentAbilityRules.Commit(
+                    componentWorld,
+                    casterEntityId,
+                    abilityId,
+                    ability.Rules,
+                    context.Frame,
+                    command.CommandId,
+                    command.TraceId);
+                if (!commitResult.Success)
+                {
+                    EnqueueFailure(
+                        context,
+                        command,
+                        casterEntityId,
+                        abilityId,
+                        commitResult.Reason,
+                        MapFailureCode(commitResult.FailureCode));
+                    return;
+                }
             }
 
             GameplayEntityId eventEntityId = ResolveEventEntity(result, casterEntityId);

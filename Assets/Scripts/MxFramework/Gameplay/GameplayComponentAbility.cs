@@ -7,6 +7,7 @@ namespace MxFramework.Gameplay
     public interface IGameplayComponentAbility
     {
         int AbilityId { get; }
+        GameplayComponentAbilityRuleSet Rules { get; }
         GameplayComponentAbilityResult Cast(GameplayComponentAbilityContext context);
     }
 
@@ -18,7 +19,10 @@ namespace MxFramework.Gameplay
         MissingAttributeSet = 3,
         MissingTarget = 4,
         EffectFailed = 5,
-        InvalidCommandPayload = 6
+        InvalidCommandPayload = 6,
+        OnCooldown = 7,
+        InsufficientCost = 8,
+        InvalidAbilityRule = 9
     }
 
     public enum GameplayComponentTargetMode
