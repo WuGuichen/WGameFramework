@@ -209,6 +209,7 @@ namespace MxFramework.Gameplay
 
             var entities = new GameplayEntityId[savedEntities.Count];
             var seen = new HashSet<GameplayEntityId>();
+            var seenIndices = new HashSet<int>();
             for (int i = 0; i < savedEntities.Count; i++)
             {
                 GameplayComponentEntitySaveState saved = savedEntities[i];
@@ -236,6 +237,8 @@ namespace MxFramework.Gameplay
                     return FailedEntities(path, "Saved component entity id must be valid.");
                 if (!seen.Add(entityId))
                     return FailedEntities(path, "Saved component entity id is duplicated.");
+                if (!seenIndices.Add(entityId.Index))
+                    return FailedEntities(path, "Saved component entity index is duplicated.");
 
                 entities[i] = entityId;
             }

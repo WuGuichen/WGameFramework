@@ -136,6 +136,45 @@ namespace MxFramework.Tests.Ability
         }
 
         [Test]
+        public void RestoreSaveState_RejectsDuplicateEntityIndex()
+        {
+            RuntimeSaveState saveState = CreateSaveState(
+                "{\"schemaVersion\":1,\"entities\":[{\"index\":1,\"generation\":1},{\"index\":1,\"generation\":2}],\"componentStores\":[]}");
+
+            RuntimeSaveStateResult<bool> result = new GameplayComponentWorldSaveStateProvider(CreateWorld(registerSave: true)).RestoreSaveState(saveState);
+
+            Assert.IsFalse(result.Success);
+            Assert.AreEqual(RuntimeSaveStateErrorCode.UnknownEntity, result.Error.Code);
+            StringAssert.Contains("index is duplicated", result.Error.Message);
+        }
+
+        [Test]
+        public void RestoreSaveState_RejectsInvalidCorePayloadValue()
+        {
+            RuntimeSaveState saveState = CreateSaveState(
+                "{\"schemaVersion\":1,\"entities\":[{\"index\":1,\"generation\":1}],\"componentStores\":[{\"schemaId\":\"mxframework.gameplay.tags\",\"schemaVersion\":1,\"entries\":[{\"entityIndex\":1,\"entityGeneration\":1,\"payload\":{\"typeId\":\"mxframework.gameplay.tags\",\"schemaVersion\":1,\"payloadJson\":\"{\\\"ids\\\":[-1]}\"}}]}]}");
+
+            RuntimeSaveStateResult<bool> result = new GameplayComponentWorldSaveStateProvider(CreateWorld(registerSave: true)).RestoreSaveState(saveState);
+
+            Assert.IsFalse(result.Success);
+            Assert.AreEqual(RuntimeSaveStateErrorCode.InvalidDocument, result.Error.Code);
+            StringAssert.Contains("invalid value", result.Error.Message);
+        }
+
+        [Test]
+        public void RestoreSaveState_RejectsInvalidLifecycleState()
+        {
+            RuntimeSaveState saveState = CreateSaveState(
+                "{\"schemaVersion\":1,\"entities\":[{\"index\":1,\"generation\":1}],\"componentStores\":[{\"schemaId\":\"mxframework.gameplay.lifecycle\",\"schemaVersion\":1,\"entries\":[{\"entityIndex\":1,\"entityGeneration\":1,\"payload\":{\"typeId\":\"mxframework.gameplay.lifecycle\",\"schemaVersion\":1,\"payloadJson\":\"{\\\"state\\\":999}\"}}]}]}");
+
+            RuntimeSaveStateResult<bool> result = new GameplayComponentWorldSaveStateProvider(CreateWorld(registerSave: true)).RestoreSaveState(saveState);
+
+            Assert.IsFalse(result.Success);
+            Assert.AreEqual(RuntimeSaveStateErrorCode.InvalidDocument, result.Error.Code);
+            StringAssert.Contains("Lifecycle state", result.Error.Message);
+        }
+
+        [Test]
         public void RuntimeSaveStateJson_RoundtripRestoresComponentWorld()
         {
             GameplayComponentWorld source = CreateWorld(registerSave: true);

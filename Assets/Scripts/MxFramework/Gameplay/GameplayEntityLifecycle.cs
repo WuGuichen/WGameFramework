@@ -112,6 +112,7 @@ namespace MxFramework.Gameplay
 
             int maxIndex = 0;
             var seen = new HashSet<GameplayEntityId>();
+            var seenIndices = new HashSet<int>();
             for (int i = 0; i < entities.Count; i++)
             {
                 GameplayEntityId entityId = entities[i];
@@ -119,6 +120,8 @@ namespace MxFramework.Gameplay
                     throw new ArgumentException("Gameplay entity restore snapshot contains an invalid entity id.", nameof(entities));
                 if (!seen.Add(entityId))
                     throw new ArgumentException("Gameplay entity restore snapshot contains a duplicate entity id.", nameof(entities));
+                if (!seenIndices.Add(entityId.Index))
+                    throw new ArgumentException("Gameplay entity restore snapshot contains a duplicate entity index.", nameof(entities));
                 if (entityId.Index > maxIndex)
                     maxIndex = entityId.Index;
             }

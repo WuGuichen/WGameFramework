@@ -299,8 +299,15 @@ namespace MxFramework.Gameplay
                 if (!result.Success)
                     return MxFramework.Runtime.RuntimeSaveStateResult<GameplayIdentityComponent>.Failed(result.Error);
 
-                return MxFramework.Runtime.RuntimeSaveStateResult<GameplayIdentityComponent>.Succeeded(
-                    new GameplayIdentityComponent(result.Value.DefinitionId, result.Value.VariantId));
+                try
+                {
+                    return MxFramework.Runtime.RuntimeSaveStateResult<GameplayIdentityComponent>.Succeeded(
+                        new GameplayIdentityComponent(result.Value.DefinitionId, result.Value.VariantId));
+                }
+                catch (System.Exception exception)
+                {
+                    return InvalidPayload<GameplayIdentityComponent>(Schema, payload, exception);
+                }
             }
         }
 
@@ -330,8 +337,15 @@ namespace MxFramework.Gameplay
                 if (!result.Success)
                     return MxFramework.Runtime.RuntimeSaveStateResult<GameplayTeamComponent>.Failed(result.Error);
 
-                return MxFramework.Runtime.RuntimeSaveStateResult<GameplayTeamComponent>.Succeeded(
-                    new GameplayTeamComponent(result.Value.TeamId));
+                try
+                {
+                    return MxFramework.Runtime.RuntimeSaveStateResult<GameplayTeamComponent>.Succeeded(
+                        new GameplayTeamComponent(result.Value.TeamId));
+                }
+                catch (System.Exception exception)
+                {
+                    return InvalidPayload<GameplayTeamComponent>(Schema, payload, exception);
+                }
             }
         }
 
@@ -361,8 +375,18 @@ namespace MxFramework.Gameplay
                 if (!result.Success)
                     return MxFramework.Runtime.RuntimeSaveStateResult<GameplayLifecycleComponent>.Failed(result.Error);
 
-                return MxFramework.Runtime.RuntimeSaveStateResult<GameplayLifecycleComponent>.Succeeded(
-                    new GameplayLifecycleComponent((GameplayLifecycleState)result.Value.State));
+                if (!System.Enum.IsDefined(typeof(GameplayLifecycleState), result.Value.State))
+                    return InvalidPayload<GameplayLifecycleComponent>(Schema, payload, "Lifecycle state is not defined: " + result.Value.State);
+
+                try
+                {
+                    return MxFramework.Runtime.RuntimeSaveStateResult<GameplayLifecycleComponent>.Succeeded(
+                        new GameplayLifecycleComponent((GameplayLifecycleState)result.Value.State));
+                }
+                catch (System.Exception exception)
+                {
+                    return InvalidPayload<GameplayLifecycleComponent>(Schema, payload, exception);
+                }
             }
         }
 
@@ -398,11 +422,19 @@ namespace MxFramework.Gameplay
                     return MxFramework.Runtime.RuntimeSaveStateResult<GameplayTagComponent>.Failed(result.Error);
 
                 int[] values = result.Value.Ids ?? System.Array.Empty<int>();
-                var ids = new GameplayTagId[values.Length];
-                for (int i = 0; i < values.Length; i++)
-                    ids[i] = new GameplayTagId(values[i]);
+                GameplayTagId[] ids;
+                try
+                {
+                    ids = new GameplayTagId[values.Length];
+                    for (int i = 0; i < values.Length; i++)
+                        ids[i] = new GameplayTagId(values[i]);
 
-                return MxFramework.Runtime.RuntimeSaveStateResult<GameplayTagComponent>.Succeeded(new GameplayTagComponent(ids));
+                    return MxFramework.Runtime.RuntimeSaveStateResult<GameplayTagComponent>.Succeeded(new GameplayTagComponent(ids));
+                }
+                catch (System.Exception exception)
+                {
+                    return InvalidPayload<GameplayTagComponent>(Schema, payload, exception);
+                }
             }
         }
 
@@ -438,11 +470,19 @@ namespace MxFramework.Gameplay
                     return MxFramework.Runtime.RuntimeSaveStateResult<GameplayStatusComponent>.Failed(result.Error);
 
                 int[] values = result.Value.Ids ?? System.Array.Empty<int>();
-                var ids = new GameplayStatusId[values.Length];
-                for (int i = 0; i < values.Length; i++)
-                    ids[i] = new GameplayStatusId(values[i]);
+                GameplayStatusId[] ids;
+                try
+                {
+                    ids = new GameplayStatusId[values.Length];
+                    for (int i = 0; i < values.Length; i++)
+                        ids[i] = new GameplayStatusId(values[i]);
 
-                return MxFramework.Runtime.RuntimeSaveStateResult<GameplayStatusComponent>.Succeeded(new GameplayStatusComponent(ids));
+                    return MxFramework.Runtime.RuntimeSaveStateResult<GameplayStatusComponent>.Succeeded(new GameplayStatusComponent(ids));
+                }
+                catch (System.Exception exception)
+                {
+                    return InvalidPayload<GameplayStatusComponent>(Schema, payload, exception);
+                }
             }
         }
 
@@ -504,6 +544,33 @@ namespace MxFramework.Gameplay
                 path,
                 message,
                 -1,
+                schema.Version));
+        }
+
+        private static MxFramework.Runtime.RuntimeSaveStateResult<TComponent> InvalidPayload<TComponent>(
+            GameplayComponentSchema schema,
+            MxFramework.Runtime.RuntimeCustomState payload,
+            System.Exception exception)
+        {
+            return MxFramework.Runtime.RuntimeSaveStateResult<TComponent>.Failed(new MxFramework.Runtime.RuntimeSaveStateError(
+                MxFramework.Runtime.RuntimeSaveStateErrorCode.InvalidDocument,
+                "payload.payloadJson",
+                "Component payload contains invalid value: " + exception.Message,
+                payload != null ? payload.SchemaVersion : -1,
+                schema.Version,
+                exception));
+        }
+
+        private static MxFramework.Runtime.RuntimeSaveStateResult<TComponent> InvalidPayload<TComponent>(
+            GameplayComponentSchema schema,
+            MxFramework.Runtime.RuntimeCustomState payload,
+            string message)
+        {
+            return MxFramework.Runtime.RuntimeSaveStateResult<TComponent>.Failed(new MxFramework.Runtime.RuntimeSaveStateError(
+                MxFramework.Runtime.RuntimeSaveStateErrorCode.InvalidDocument,
+                "payload.payloadJson",
+                "Component payload contains invalid value: " + message,
+                payload != null ? payload.SchemaVersion : -1,
                 schema.Version));
         }
 
