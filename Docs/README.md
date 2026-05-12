@@ -109,6 +109,7 @@
 | `Tasks/GAMEPLAY_ECS_STYLE_10_COMPONENT_SCHEMA_REGISTRY.md` | Gameplay ECS-style 10：实现 component schema registry、capability adapter lookup、core diagnostics descriptors 和 ComponentWorld schema 入口。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md` | Gameplay ECS-style 11：实现 ComponentWorld runtime hash contributor、core component hash writers 和 schema-backed hash ordering tests。 |
 | `Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md` | Gameplay ECS-style 12：实现 ComponentWorld SaveState provider/restorer、core component save adapters 和 JSON roundtrip hash 恢复测试。 |
+| `Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md` | Gameplay ECS-style 13：实现 lifecycle cleanup component state system，验证 Resolution phase、event、hash 和 SaveState restore 闭环。 |
 | `Tasks/GAMEPLAY_ABILITY_03_COMMAND_SYSTEM.md` | Gameplay Ability 03：将 CastAbility / DespawnEntity 迁入 command systems，让 GameplayRuntimeModule 只负责 drain、pipeline、event queue 和 world tick。 |
 | `Tasks/GAMEPLAY_ABILITY_04_COMMAND_HANDLED_STATE.md` | Gameplay Ability 04：新增 command handled 状态，让 unsupported system 基于 handled 判断，支持 default pipeline 上扩展自定义 command system。 |
 | `Tasks/RUNTIME_FOUNDATION_01_RUNTIME_HOST.md` | Runtime Foundation P0-1：规划 Runtime Host / Composition Root，统一模块注册、生命周期、Tick 顺序和诊断入口。 |
@@ -184,6 +185,7 @@
 
 | 版本 | 日期 | 变更 |
 |------|------|------|
+| 0.6.21 | 2026-05-12 | 新增 Gameplay Component State Systems v0，支持 `GameplayLifecycleCleanupSystem` 清理 `PendingDestroy` component entity |
 | 0.6.20 | 2026-05-12 | 新增 Gameplay Component SaveState v0，支持 `GameplayComponentWorldSaveStateProvider`、core component save adapters 和 JSON roundtrip restore |
 | 0.6.19 | 2026-05-12 | 新增 Gameplay Component Runtime Hash v0，支持 `GameplayComponentWorldHashContributor`、core component hash writers 和 schema-backed hash ordering tests |
 | 0.6.18 | 2026-05-12 | 新增 Gameplay Component Schema Registry v0，支持 schema metadata、capability adapter lookup 和 core diagnostics descriptors |

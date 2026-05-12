@@ -58,6 +58,7 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayAbilityCommandSystem` | 处理 `CastAbility` command，调用 Ability runtime adapter 并输出 runtime event |
 | `GameplayEntityLifecycleCommandSystem` | 处理 `DespawnEntity` command |
 | `GameplayComponentEntityCommandSystem` | 处理 component runtime 的 `CreateComponentEntity` / `DestroyComponentEntity` command |
+| `GameplayLifecycleCleanupSystem` / `GameplayLifecycleEvents` | Resolution phase 清理 `PendingDestroy` component entity，并输出稳定 reason 的 runtime event |
 | `GameplayUnsupportedCommandSystem` | 拒绝 default pipeline 中未识别的 Gameplay command id |
 | `ITargetSelector` | 从候选目标中选择技能目标 |
 | `GameplayTargetCandidate` | 可目标选择的实体快照，包含 entity/team/alive/tag/status |
@@ -209,7 +210,7 @@ Component store v0：
 - `GameplayComponentWorldHashContributor` 通过 schema registry 接入 `RuntimeHashCombiner`，按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
 - `GameplayComponentWorldSaveStateProvider` 通过 `RuntimeModuleSaveState.CustomState.PayloadJson` 保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、missing adapter、unsupported version 或 invalid entity id 返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
-- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`。
+- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Core components v0：
@@ -236,6 +237,17 @@ System pipeline v0：
 - 显式传入 custom pipeline 表示调用方完全接管 pipeline 注册；module 不再执行内置 command switch，也不会自动重接外部 pipeline 中 ability system 的 result sink。
 - Custom command systems 应使用低于 `GameplayUnsupportedCommandSystem` 默认 `int.MaxValue` 的 priority，除非调用方要替换 unsupported handling。
 - System 抛异常时，pipeline 用 `GameplaySystemPipelineException` 包装 system id 和 phase 后重新抛出。
+
+Component state systems v0：
+
+- `GameplayLifecycleCleanupSystem` 运行在 `GameplaySystemPhase.Resolution`，默认 system id 为 `mxframework.gameplay.lifecycle.cleanup`。
+- Cleanup system 只读取 `GameplaySystemContext.ComponentWorld` 中的 `GameplayLifecycleComponent` store，不读取或迁移旧 `RuntimeEntity` / `GameplayWorld` 状态。
+- Cleanup tick 会 snapshot lifecycle store，找出 `State == PendingDestroy` 的 entity，按 `GameplayEntityId` 稳定顺序调用 `GameplayComponentWorld.DestroyEntity(id)`。
+- Destroy 必须走 `GameplayComponentWorld.DestroyEntity`，让 `GameplayComponentRegistry` 清理所有 registered component stores。
+- 成功清理后输出 `GameplayRuntimeEventType.ComponentEntityDestroyed`，reason 为 `GameplayLifecycleEvents.PendingDestroyCleanupReason` / `PendingDestroyCleanup`，`CommandId` 为 `0`。
+- `Alive` 和 `Destroyed` lifecycle state 不会被 cleanup system 销毁；`Destroyed` 不应长期保留在 alive entity 的 component store 中，真正销毁仍应由 cleanup 或显式 destroy command 完成。
+- 手动构造 context 且缺少 component world 时，cleanup system 输出 `CommandRejected / MissingComponentWorld` 诊断事件，不抛空引用异常。
+- `GameplayRuntimeModule.CreateDefaultSystemPipeline` 暂不自动注册 lifecycle cleanup；项目层可通过 `configureDefaultPipeline` 或自定义 pipeline 显式加入。
 
 Gameplay command systems v0：
 
@@ -356,6 +368,7 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - Gameplay ECS-style v0 API bridge：component registry 统一 entity destroy cleanup registered stores，不复制 `RuntimeEntity` 状态。
 - Gameplay ECS-style core components v0：Identity、Team、Lifecycle、Tag、Status 纯数据组件。
 - Gameplay command systems v0：CastAbility、DespawnEntity 和 unsupported command rejection 从 module switch 迁入 systems。
+- Gameplay component state systems v0：Lifecycle cleanup 在 Resolution phase 清理 `PendingDestroy` entity，并复用 ComponentWorld destroy cleanup / event queue / hash / SaveState 闭环。
 - Ability Runtime Graph v0：图契约、确定性执行、phase timeline、diagnostics、hash。
 - 自身目标和单敌方目标选择。
 - 直接伤害效果。
