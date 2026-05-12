@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using MxFramework.Runtime;
 
 namespace MxFramework.Gameplay
 {
@@ -24,6 +25,7 @@ namespace MxFramework.Gameplay
                 throw new ArgumentNullException(nameof(descriptor));
 
             GameplayComponentSchema schema = descriptor.Schema;
+            ValidateDescriptorAgainstSchema(descriptor, schema);
             SchemaEntry entry = GetOrCreateEntry(schema);
             entry.Attach(descriptor);
         }
@@ -95,6 +97,23 @@ namespace MxFramework.Gameplay
             return snapshot;
         }
 
+        internal GameplayComponentHashAdapter[] CreateHashAdapters()
+        {
+            var adapters = new List<GameplayComponentHashAdapter>();
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].TryCreateHashAdapter(out GameplayComponentHashAdapter adapter))
+                    adapters.Add(adapter);
+            }
+
+            if (adapters.Count == 0)
+                return Array.Empty<GameplayComponentHashAdapter>();
+
+            var snapshot = adapters.ToArray();
+            Array.Sort(snapshot, CompareHashAdapters);
+            return snapshot;
+        }
+
         public void Clear()
         {
             _entriesByStableId.Clear();
@@ -134,10 +153,46 @@ namespace MxFramework.Gameplay
             return string.CompareOrdinal(left.StableId, right.StableId);
         }
 
+        private static int CompareHashAdapters(GameplayComponentHashAdapter left, GameplayComponentHashAdapter right)
+        {
+            return string.CompareOrdinal(left.Schema.StableId, right.Schema.StableId);
+        }
+
+        private static void ValidateDescriptorAgainstSchema(
+            IGameplayComponentSchemaDescriptor descriptor,
+            GameplayComponentSchema schema)
+        {
+            Type[] interfaces = descriptor.GetType().GetInterfaces();
+            for (int i = 0; i < interfaces.Length; i++)
+            {
+                Type interfaceType = interfaces[i];
+                if (!interfaceType.IsGenericType)
+                    continue;
+
+                Type definition = interfaceType.GetGenericTypeDefinition();
+                bool isDiagnostic = definition == typeof(IGameplayComponentDiagnosticWriter<>);
+                bool isHash = definition == typeof(IGameplayComponentHashWriter<>);
+                bool isSaveState = definition == typeof(IGameplayComponentSaveStateAdapter<>);
+                if (!isDiagnostic && !isHash && !isSaveState)
+                    continue;
+
+                Type capabilityComponentType = interfaceType.GetGenericArguments()[0];
+                if (capabilityComponentType != schema.ComponentType)
+                    throw new InvalidOperationException("Gameplay component schema descriptor capability type does not match schema component type.");
+                if (isDiagnostic && !schema.SupportsDiagnostics)
+                    throw new InvalidOperationException("Gameplay component schema does not declare diagnostics support.");
+                if (isHash && !schema.SupportsHash)
+                    throw new InvalidOperationException("Gameplay component schema does not declare hash support.");
+                if (isSaveState && !schema.SupportsSaveState)
+                    throw new InvalidOperationException("Gameplay component schema does not declare SaveState support.");
+            }
+        }
+
         private sealed class SchemaEntry
         {
             private object _diagnosticWriter;
             private object _hashWriter;
+            private IGameplayComponentHashRuntimeWriter _hashRuntimeWriter;
             private object _saveStateAdapter;
             private bool _schemaOnlyRegistered;
 
@@ -156,6 +211,9 @@ namespace MxFramework.Gameplay
                 Type diagnosticType = typeof(IGameplayComponentDiagnosticWriter<>).MakeGenericType(componentType);
                 if (diagnosticType.IsInstanceOfType(descriptor))
                 {
+                    if (!Schema.SupportsDiagnostics)
+                        throw new InvalidOperationException("Gameplay component schema does not declare diagnostics support.");
+
                     AttachCapability(ref _diagnosticWriter, descriptor, "diagnostic writer");
                     attached = true;
                 }
@@ -163,16 +221,26 @@ namespace MxFramework.Gameplay
                 Type hashType = typeof(IGameplayComponentHashWriter<>).MakeGenericType(componentType);
                 if (hashType.IsInstanceOfType(descriptor))
                 {
+                    if (!Schema.SupportsHash)
+                        throw new InvalidOperationException("Gameplay component schema does not declare hash support.");
+
                     AttachCapability(ref _hashWriter, descriptor, "hash writer");
+                    _hashRuntimeWriter = CreateHashRuntimeWriter(descriptor, componentType);
                     attached = true;
                 }
 
                 Type saveType = typeof(IGameplayComponentSaveStateAdapter<>).MakeGenericType(componentType);
                 if (saveType.IsInstanceOfType(descriptor))
                 {
+                    if (!Schema.SupportsSaveState)
+                        throw new InvalidOperationException("Gameplay component schema does not declare SaveState support.");
+
                     AttachCapability(ref _saveStateAdapter, descriptor, "save state adapter");
                     attached = true;
                 }
+
+                if (!attached && ImplementsGameplayCapability(descriptor.GetType()))
+                    throw new InvalidOperationException("Gameplay component schema descriptor capability type does not match schema component type.");
 
                 if (!attached)
                 {
@@ -198,6 +266,18 @@ namespace MxFramework.Gameplay
                 return writer != null;
             }
 
+            public bool TryCreateHashAdapter(out GameplayComponentHashAdapter adapter)
+            {
+                if (_hashRuntimeWriter == null)
+                {
+                    adapter = default;
+                    return false;
+                }
+
+                adapter = new GameplayComponentHashAdapter(Schema, _hashRuntimeWriter);
+                return true;
+            }
+
             public bool TryGetSaveStateAdapter<T>(out IGameplayComponentSaveStateAdapter<T> adapter)
                 where T : struct, IGameplayComponent
             {
@@ -212,6 +292,111 @@ namespace MxFramework.Gameplay
 
                 target = capability;
             }
+
+            private static IGameplayComponentHashRuntimeWriter CreateHashRuntimeWriter(
+                object descriptor,
+                Type componentType)
+            {
+                Type runtimeWriterType = typeof(GameplayComponentHashRuntimeWriter<>).MakeGenericType(componentType);
+                return (IGameplayComponentHashRuntimeWriter)Activator.CreateInstance(runtimeWriterType, descriptor);
+            }
+
+            private static bool ImplementsGameplayCapability(Type descriptorType)
+            {
+                Type[] interfaces = descriptorType.GetInterfaces();
+                for (int i = 0; i < interfaces.Length; i++)
+                {
+                    Type interfaceType = interfaces[i];
+                    if (!interfaceType.IsGenericType)
+                        continue;
+
+                    Type definition = interfaceType.GetGenericTypeDefinition();
+                    if (definition == typeof(IGameplayComponentDiagnosticWriter<>)
+                        || definition == typeof(IGameplayComponentHashWriter<>)
+                        || definition == typeof(IGameplayComponentSaveStateAdapter<>))
+                        return true;
+                }
+
+                return false;
+            }
+        }
+    }
+
+    internal readonly struct GameplayComponentHashAdapter
+    {
+        private readonly IGameplayComponentHashRuntimeWriter _writer;
+
+        public GameplayComponentHashAdapter(
+            GameplayComponentSchema schema,
+            IGameplayComponentHashRuntimeWriter writer)
+        {
+            Schema = schema;
+            _writer = writer ?? throw new ArgumentNullException(nameof(writer));
+        }
+
+        public GameplayComponentSchema Schema { get; }
+
+        public bool TryWriteHash(
+            GameplayComponentRegistry registry,
+            GameplayEntityId entityId,
+            RuntimeHashAccumulator accumulator)
+        {
+            return _writer.TryWriteHash(registry, entityId, accumulator);
+        }
+
+        public bool Contains(GameplayComponentRegistry registry, GameplayEntityId entityId)
+        {
+            return _writer.Contains(registry, entityId);
+        }
+    }
+
+    internal interface IGameplayComponentHashRuntimeWriter
+    {
+        bool Contains(GameplayComponentRegistry registry, GameplayEntityId entityId);
+
+        bool TryWriteHash(
+            GameplayComponentRegistry registry,
+            GameplayEntityId entityId,
+            RuntimeHashAccumulator accumulator);
+    }
+
+    internal sealed class GameplayComponentHashRuntimeWriter<T> : IGameplayComponentHashRuntimeWriter
+        where T : struct, IGameplayComponent
+    {
+        private readonly IGameplayComponentHashWriter<T> _writer;
+
+        public GameplayComponentHashRuntimeWriter(object writer)
+        {
+            _writer = writer as IGameplayComponentHashWriter<T>
+                ?? throw new ArgumentException("Gameplay component hash writer has an incompatible component type.", nameof(writer));
+        }
+
+        public bool Contains(GameplayComponentRegistry registry, GameplayEntityId entityId)
+        {
+            if (registry == null)
+                throw new ArgumentNullException(nameof(registry));
+
+            return registry.TryGetStore(out GameplayComponentStore<T> store)
+                && store.Contains(entityId);
+        }
+
+        public bool TryWriteHash(
+            GameplayComponentRegistry registry,
+            GameplayEntityId entityId,
+            RuntimeHashAccumulator accumulator)
+        {
+            if (registry == null)
+                throw new ArgumentNullException(nameof(registry));
+            if (accumulator == null)
+                throw new ArgumentNullException(nameof(accumulator));
+
+            if (!registry.TryGetStore(out GameplayComponentStore<T> store))
+                return false;
+            if (!store.TryGet(entityId, out T component))
+                return false;
+
+            _writer.WriteHash(entityId, component, accumulator);
+            return true;
         }
     }
 }

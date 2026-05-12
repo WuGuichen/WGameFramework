@@ -197,16 +197,18 @@ Component store v0：
 - `GameplayComponentWorld.Clear()` 清空 component registry state 和 pending events，不处理旧 `GameplayWorld` / `RuntimeEntity`；只应用于 session reset / world reset。
 - `GameplayRuntimeModule.ComponentWorld` 默认存在；module 的 `Events` 与 `ComponentWorld.Events` 是同一个 queue。
 - `GameplayComponentWorldDiagnostics` 输出 component runtime 的结构摘要：alive entity ids、registered store type/count 和 event queue snapshot。
-- Store diagnostics 按 component type full name 稳定排序；当前不保存泛型 component value，不定义 SaveState / ReplayHash schema。
+- Store diagnostics 按 component type full name 稳定排序；当前不保存泛型 component value，不定义 SaveState schema。
 - Component value 参与 diagnostics / hash / SaveState 前必须先注册显式 schema。Schema 使用长期稳定的 `StableId` 作为权威 component type key，不使用 `Type.FullName`、反射字段顺序或泛型 store 的自动 JSON 形态作为权威格式。
 - Component schema descriptor 负责声明 schema version、诊断 writer、hash writer 和 SaveState adapter。一个 component 可以分阶段只支持 diagnostics，不支持 hash/save。
 - 同一 component 在 schema registry 中只能有一个 schema entry。Diagnostics、hash 和 SaveState capability 可以由同一个 descriptor 实现，也可以挂在同一个 entry 下，但不能用多个 schema entry 重复注册同一 `StableId` 或 `ComponentType`。
+- Capability adapter 的泛型 component type 必须匹配 `Schema.ComponentType`，且 schema 必须显式声明 `SupportsDiagnostics` / `SupportsHash` / `SupportsSaveState` 才能注册对应 adapter。
 - Registry snapshot 只暴露 schema metadata；真正执行 diagnostics / hash / SaveState 时，executor 必须通过 registry 解析对应 capability adapter，不能拿 metadata 后自行反射 component value。
-- `GameplayCoreComponentSchemaDescriptors.RegisterDiagnostics` 只注册 core diagnostics descriptors；core hash writers 和 SaveState adapters 留给后续 component runtime hash/save 批次。
-- Component runtime hash 后续应按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
+- Diagnostics executor 后续统一写入 `schemaId` / `schemaVersion`；单个 component diagnostics writer 只写 entity 和 component fields。
+- `GameplayCoreComponentSchemaDescriptors.RegisterDiagnostics` 注册 core diagnostics descriptors；`RegisterRuntimeHash` 注册 core hash writers，二者可以按任意顺序挂到同一个 schema entry。
+- `GameplayComponentWorldHashContributor` 通过 schema registry 接入 `RuntimeHashCombiner`，按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
 - Component SaveState 后续应保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、unsupported version 或 invalid entity id 必须返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
-- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`。
+- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Core components v0：
@@ -249,6 +251,7 @@ Hash / diagnostics：
 
 - `GameplayHashContributor` 实现 `IRuntimeHashContributor`，可接 entity list 或 `GameplayWorld`。
 - Hash 输入按 entity id、attribute id、buff id、modifier id 等稳定顺序写入。
+- `GameplayComponentWorldHashContributor` 实现 `IRuntimeHashContributor`，只写入显式注册 hash writer 的 component runtime state。
 - `GameplayWorldDiagnostics` 复用 `GameplayDiagnosticSnapshotBuilder`，并提供 entity/alive/attribute/buff/modifier 计数摘要。
 
 ## Ability Runtime Graph v0
@@ -358,7 +361,7 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - 添加 Buff 效果。
 - 技能生命周期事件顺序：`CastStarted`、`TargetSelected`、`EffectApplied`、`CastFinished`，失败时为 `CastStarted`、`CastFailed`。
 - 运行时诊断快照：Entity / Attribute / Buff / Modifier / Ability / Event 状态汇总。
-- Runtime hash contributor：Gameplay entity/world 状态可接入 `RuntimeHashCombiner`。
+- Runtime hash contributor：Gameplay entity/world 状态和 ComponentWorld 状态可接入 `RuntimeHashCombiner`。
 - 纯 C# EditMode 测试覆盖。
 
 ## v0 不支持

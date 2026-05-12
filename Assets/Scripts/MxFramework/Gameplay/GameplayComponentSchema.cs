@@ -13,8 +13,7 @@ namespace MxFramework.Gameplay
             bool supportsHash = false,
             bool supportsSaveState = false)
         {
-            if (string.IsNullOrWhiteSpace(stableId))
-                throw new ArgumentException("Gameplay component schema stable id cannot be null or empty.", nameof(stableId));
+            ValidateStableId(stableId);
             if (version <= 0)
                 throw new ArgumentOutOfRangeException(nameof(version), "Gameplay component schema version must be positive.");
             if (componentType == null)
@@ -42,6 +41,33 @@ namespace MxFramework.Gameplay
         public bool SupportsDiagnostics { get; }
         public bool SupportsHash { get; }
         public bool SupportsSaveState { get; }
+
+        private static void ValidateStableId(string stableId)
+        {
+            if (string.IsNullOrWhiteSpace(stableId))
+                throw new ArgumentException("Gameplay component schema stable id cannot be null or empty.", nameof(stableId));
+            if (stableId.Trim() != stableId)
+                throw new ArgumentException("Gameplay component schema stable id cannot contain leading or trailing whitespace.", nameof(stableId));
+
+            bool previousWasDot = false;
+            for (int i = 0; i < stableId.Length; i++)
+            {
+                char c = stableId[i];
+                bool valid = c >= 'a' && c <= 'z'
+                    || c >= '0' && c <= '9'
+                    || c == '-'
+                    || c == '_'
+                    || c == '.';
+                if (!valid)
+                    throw new ArgumentException("Gameplay component schema stable id must use lowercase dotted id characters.", nameof(stableId));
+                if (i == 0 && c == '.' || i == stableId.Length - 1 && c == '.')
+                    throw new ArgumentException("Gameplay component schema stable id cannot start or end with '.'.", nameof(stableId));
+                if (c == '.' && previousWasDot)
+                    throw new ArgumentException("Gameplay component schema stable id cannot contain empty dotted segments.", nameof(stableId));
+
+                previousWasDot = c == '.';
+            }
+        }
 
         public bool Equals(GameplayComponentSchema other)
         {

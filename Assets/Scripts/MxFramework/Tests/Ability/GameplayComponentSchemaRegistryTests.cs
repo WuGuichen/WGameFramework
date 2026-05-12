@@ -11,6 +11,10 @@ namespace MxFramework.Tests.Ability
         public void Schema_ValidatesStableIdVersionAndComponentType()
         {
             Assert.Throws<ArgumentException>(() => new GameplayComponentSchema(string.Empty, 1, typeof(TestComponent)));
+            Assert.Throws<ArgumentException>(() => new GameplayComponentSchema(" test.component", 1, typeof(TestComponent)));
+            Assert.Throws<ArgumentException>(() => new GameplayComponentSchema("Test.Component", 1, typeof(TestComponent)));
+            Assert.Throws<ArgumentException>(() => new GameplayComponentSchema("test..component", 1, typeof(TestComponent)));
+            Assert.Throws<ArgumentException>(() => new GameplayComponentSchema("test component", 1, typeof(TestComponent)));
             Assert.Throws<ArgumentOutOfRangeException>(() => new GameplayComponentSchema("test.component", 0, typeof(TestComponent)));
             Assert.Throws<ArgumentNullException>(() => new GameplayComponentSchema("test.component", 1, null));
             Assert.Throws<ArgumentException>(() => new GameplayComponentSchema("test.component", 1, typeof(string)));
@@ -97,6 +101,32 @@ namespace MxFramework.Tests.Ability
             registry.Register(new TestDiagnosticDescriptor(schema));
 
             Assert.Throws<InvalidOperationException>(() => registry.Register(new TestDiagnosticDescriptor(schema)));
+        }
+
+        [Test]
+        public void Registry_RejectsCapabilityWhenSchemaDoesNotDeclareSupport()
+        {
+            var registry = new GameplayComponentSchemaRegistry();
+
+            Assert.Throws<InvalidOperationException>(() => registry.Register(new TestDiagnosticDescriptor(
+                new GameplayComponentSchema("test.diagnostic", 1, typeof(TestComponent)))));
+            Assert.Throws<InvalidOperationException>(() => registry.Register(new TestHashDescriptor(
+                new GameplayComponentSchema("test.hash", 1, typeof(TestComponent)))));
+            Assert.Throws<InvalidOperationException>(() => registry.Register(new TestSaveDescriptor(
+                new GameplayComponentSchema("test.save", 1, typeof(TestComponent)))));
+        }
+
+        [Test]
+        public void Registry_RejectsCapabilityWithMismatchedSchemaComponentType()
+        {
+            var registry = new GameplayComponentSchemaRegistry();
+
+            Assert.Throws<InvalidOperationException>(() => registry.Register(new MismatchedDiagnosticDescriptor(
+                new GameplayComponentSchema(
+                    "test.mismatch",
+                    1,
+                    typeof(TestComponent),
+                    supportsDiagnostics: true))));
         }
 
         [Test]
@@ -205,6 +235,33 @@ namespace MxFramework.Tests.Ability
                 RuntimeHashAccumulator accumulator)
             {
                 accumulator.AddInt("value", component.Value);
+            }
+        }
+
+        private sealed class TestSaveDescriptor : IGameplayComponentSaveStateAdapter<TestComponent>
+        {
+            public TestSaveDescriptor(GameplayComponentSchema schema)
+            {
+                Schema = schema;
+            }
+
+            public GameplayComponentSchema Schema { get; }
+        }
+
+        private sealed class MismatchedDiagnosticDescriptor : IGameplayComponentDiagnosticWriter<SecondComponent>
+        {
+            public MismatchedDiagnosticDescriptor(GameplayComponentSchema schema)
+            {
+                Schema = schema;
+            }
+
+            public GameplayComponentSchema Schema { get; }
+
+            public void WriteDiagnostics(
+                GameplayEntityId entityId,
+                in SecondComponent component,
+                GameplayComponentDiagnosticWriter writer)
+            {
             }
         }
     }

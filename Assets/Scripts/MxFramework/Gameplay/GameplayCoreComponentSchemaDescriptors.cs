@@ -20,6 +20,18 @@ namespace MxFramework.Gameplay
             registry.Register(new StatusesDiagnostics());
         }
 
+        public static void RegisterRuntimeHash(GameplayComponentSchemaRegistry registry)
+        {
+            if (registry == null)
+                throw new System.ArgumentNullException(nameof(registry));
+
+            registry.Register(new IdentityHash());
+            registry.Register(new TeamHash());
+            registry.Register(new LifecycleHash());
+            registry.Register(new TagsHash());
+            registry.Register(new StatusesHash());
+        }
+
         private sealed class IdentityDiagnostics : IGameplayComponentDiagnosticWriter<GameplayIdentityComponent>
         {
             public GameplayComponentSchema Schema => new GameplayComponentSchema(
@@ -27,7 +39,8 @@ namespace MxFramework.Gameplay
                 1,
                 typeof(GameplayIdentityComponent),
                 "Gameplay Identity",
-                supportsDiagnostics: true);
+                supportsDiagnostics: true,
+                supportsHash: true);
 
             public void WriteDiagnostics(
                 GameplayEntityId entityId,
@@ -48,7 +61,8 @@ namespace MxFramework.Gameplay
                 1,
                 typeof(GameplayTeamComponent),
                 "Gameplay Team",
-                supportsDiagnostics: true);
+                supportsDiagnostics: true,
+                supportsHash: true);
 
             public void WriteDiagnostics(
                 GameplayEntityId entityId,
@@ -68,7 +82,8 @@ namespace MxFramework.Gameplay
                 1,
                 typeof(GameplayLifecycleComponent),
                 "Gameplay Lifecycle",
-                supportsDiagnostics: true);
+                supportsDiagnostics: true,
+                supportsHash: true);
 
             public void WriteDiagnostics(
                 GameplayEntityId entityId,
@@ -89,7 +104,8 @@ namespace MxFramework.Gameplay
                 1,
                 typeof(GameplayTagComponent),
                 "Gameplay Tags",
-                supportsDiagnostics: true);
+                supportsDiagnostics: true,
+                supportsHash: true);
 
             public void WriteDiagnostics(
                 GameplayEntityId entityId,
@@ -111,7 +127,8 @@ namespace MxFramework.Gameplay
                 1,
                 typeof(GameplayStatusComponent),
                 "Gameplay Statuses",
-                supportsDiagnostics: true);
+                supportsDiagnostics: true,
+                supportsHash: true);
 
             public void WriteDiagnostics(
                 GameplayEntityId entityId,
@@ -130,6 +147,108 @@ namespace MxFramework.Gameplay
         {
             writer.AddInt("entity.index", entityId.Index);
             writer.AddInt("entity.generation", entityId.Generation);
+        }
+
+        private sealed class IdentityHash : IGameplayComponentHashWriter<GameplayIdentityComponent>
+        {
+            public GameplayComponentSchema Schema => new GameplayComponentSchema(
+                IdentityStableId,
+                1,
+                typeof(GameplayIdentityComponent),
+                "Gameplay Identity",
+                supportsDiagnostics: true,
+                supportsHash: true);
+
+            public void WriteHash(
+                GameplayEntityId entityId,
+                in GameplayIdentityComponent component,
+                MxFramework.Runtime.RuntimeHashAccumulator accumulator)
+            {
+                accumulator.AddInt("definitionId", component.DefinitionId);
+                accumulator.AddInt("variantId", component.VariantId);
+            }
+        }
+
+        private sealed class TeamHash : IGameplayComponentHashWriter<GameplayTeamComponent>
+        {
+            public GameplayComponentSchema Schema => new GameplayComponentSchema(
+                TeamStableId,
+                1,
+                typeof(GameplayTeamComponent),
+                "Gameplay Team",
+                supportsDiagnostics: true,
+                supportsHash: true);
+
+            public void WriteHash(
+                GameplayEntityId entityId,
+                in GameplayTeamComponent component,
+                MxFramework.Runtime.RuntimeHashAccumulator accumulator)
+            {
+                accumulator.AddInt("teamId", component.TeamId);
+            }
+        }
+
+        private sealed class LifecycleHash : IGameplayComponentHashWriter<GameplayLifecycleComponent>
+        {
+            public GameplayComponentSchema Schema => new GameplayComponentSchema(
+                LifecycleStableId,
+                1,
+                typeof(GameplayLifecycleComponent),
+                "Gameplay Lifecycle",
+                supportsDiagnostics: true,
+                supportsHash: true);
+
+            public void WriteHash(
+                GameplayEntityId entityId,
+                in GameplayLifecycleComponent component,
+                MxFramework.Runtime.RuntimeHashAccumulator accumulator)
+            {
+                accumulator.AddInt("state", (int)component.State);
+            }
+        }
+
+        private sealed class TagsHash : IGameplayComponentHashWriter<GameplayTagComponent>
+        {
+            public GameplayComponentSchema Schema => new GameplayComponentSchema(
+                TagsStableId,
+                1,
+                typeof(GameplayTagComponent),
+                "Gameplay Tags",
+                supportsDiagnostics: true,
+                supportsHash: true);
+
+            public void WriteHash(
+                GameplayEntityId entityId,
+                in GameplayTagComponent component,
+                MxFramework.Runtime.RuntimeHashAccumulator accumulator)
+            {
+                GameplayTagId[] ids = component.ToArray();
+                accumulator.AddInt("count", ids.Length);
+                for (int i = 0; i < ids.Length; i++)
+                    accumulator.AddInt("id", ids[i].Value);
+            }
+        }
+
+        private sealed class StatusesHash : IGameplayComponentHashWriter<GameplayStatusComponent>
+        {
+            public GameplayComponentSchema Schema => new GameplayComponentSchema(
+                StatusesStableId,
+                1,
+                typeof(GameplayStatusComponent),
+                "Gameplay Statuses",
+                supportsDiagnostics: true,
+                supportsHash: true);
+
+            public void WriteHash(
+                GameplayEntityId entityId,
+                in GameplayStatusComponent component,
+                MxFramework.Runtime.RuntimeHashAccumulator accumulator)
+            {
+                GameplayStatusId[] ids = component.ToArray();
+                accumulator.AddInt("count", ids.Length);
+                for (int i = 0; i < ids.Length; i++)
+                    accumulator.AddInt("id", ids[i].Value);
+            }
         }
     }
 }

@@ -93,10 +93,13 @@ public GameplayComponentSchemaRegistry Schemas { get; }
 ## 验收
 
 - Schema 校验 stable id、version 和 component type。
+- Stable id 拒绝前后空格、空白字符、大写字符和空 dotted segment。
 - Component type 必须是实现 `IGameplayComponent` 的 value type。
 - Registry 拒绝重复 stable id、重复 component type 和冲突 metadata。
 - Registry 允许不同 capability adapter 挂到同一 schema entry。
+- Capability adapter 必须匹配 `Schema.ComponentType`，且 schema 必须显式声明对应 support flag。
 - Registry 拒绝重复 capability。
 - Snapshot 按 `StableId` 稳定排序。
 - Core diagnostics descriptors 注册 5 个 core component schema，并能写出稳定 diagnostics fields。
+- Diagnostics executor 后续负责统一写入 `schemaId` / `schemaVersion`；core diagnostics writer 只写 entity 和 component fields。
 - `GameplayComponentWorld` 默认持有 schema registry，也支持注入。
