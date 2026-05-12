@@ -66,5 +66,22 @@ namespace MxFramework.Gameplay
                 payload1: entityId.Generation,
                 traceId: traceId);
         }
+
+        public static RuntimeCommand SpawnComponentEntity(
+            RuntimeFrame frame,
+            int spawnDefinitionId,
+            int variantId = 0,
+            int sourceId = 0,
+            string traceId = "")
+        {
+            return new RuntimeCommand(
+                frame,
+                sourceId,
+                GameplayRuntimeCommandIds.SpawnComponentEntity,
+                targetId: spawnDefinitionId,
+                payload0: spawnDefinitionId,
+                payload1: variantId,
+                traceId: traceId);
+        }
     }
 }

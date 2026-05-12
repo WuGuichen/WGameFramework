@@ -46,6 +46,9 @@ Gameplay 提供最小游戏行为运行时核心：实体、技能、目标选�
 | `GameplayComponentSchema` / `GameplayComponentSchemaRegistry` | Component value 的 schema 契约入口，用稳定 id 注册诊断、hash 和 SaveState adapter |
 | `GameplayComponentDiagnosticWriter` / `GameplayComponentDiagnosticField` | Component diagnostics capability 的稳定 key/value 输出工具 |
 | `GameplayCoreComponentSchemaDescriptors` | Core component diagnostics schema 注册入口 |
+| `GameplayComponentSpawnDefinition` / `GameplayComponentSpawnRegistry` | 显式注册的 component entity spawn 定义与稳定 id 查询入口 |
+| `IGameplayComponentSpawnInitializer` / `GameplayComponentSpawnInitializer<T>` | Spawn definition 的初始 component 写入器 |
+| `GameplayComponentSpawnCommandSystem` / `GameplayComponentSpawnEvents` | 处理 `SpawnComponentEntity` command，创建带初始 components 的 component entity |
 | `GameplayIdentityComponent` | ECS-style component runtime 的配置身份数据 |
 | `GameplayTeamComponent` | ECS-style team 数据，复用 `GameplayTeamRelations` |
 | `GameplayLifecycleComponent` / `GameplayLifecycleState` | ECS-style lifecycle state 数据 |
@@ -210,8 +213,22 @@ Component store v0：
 - `GameplayComponentWorldHashContributor` 通过 schema registry 接入 `RuntimeHashCombiner`，按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
 - `GameplayComponentWorldSaveStateProvider` 通过 `RuntimeModuleSaveState.CustomState.PayloadJson` 保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、missing adapter、unsupported version 或 invalid entity id 返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
-- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`。
+- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`；component state system 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_13_COMPONENT_STATE_SYSTEMS.md`；component spawn definition 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_14_COMPONENT_SPAWN_DEFINITIONS.md`。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
+
+Component spawn definitions v0：
+
+- `GameplayComponentSpawnDefinition` 是显式注册对象，包含 `DefinitionId`、`StableId`、`SchemaVersion` 和稳定顺序的 initializers；不做程序集扫描。
+- `GameplayComponentSpawnRegistry` 只保存 definitions，不拥有 `GameplayComponentWorld`；重复 `DefinitionId` 或 `StableId` 会抛错，snapshot 按 `DefinitionId` 稳定排序。
+- `StableId` 使用小写 dotted id；空白、前后空格、首尾点、连续点和大写字符都会被拒绝。
+- `IGameplayComponentSpawnInitializer` 只负责把初始 component 写入新 entity；`GameplayComponentSpawnInitializer<T>` 使用 `world.GetOrCreateStore<T>().Set(entityId, component)`，不读取 Unity object、时间、随机数或外部 mutable state。
+- `SpawnComponentEntity` command 使用 `GameplayRuntimeCommandIds.SpawnComponentEntity`，payload 只携带 `spawnDefinitionId` 和 `variantId` 等稳定 id，不携带任意 component 字段。
+- `GameplayComponentSpawnCommandSystem` 运行在 `GameplaySystemPhase.Command`，默认 priority 为 `30`，在 component entity command system 之后、unsupported command system 之前。
+- Spawn command 成功时创建 entity、按 definition initializer 顺序写入 components，并输出 `ComponentEntityCreated / SpawnComponentEntity` event。
+- 任一 initializer 失败时，system 会调用 `GameplayComponentWorld.DestroyEntity(entityId)` 回滚新建 entity，并输出 `CommandRejected / SpawnInitializerFailed`。
+- 缺少 component world、spawn registry、definition 或空 initializer definition 时，system 输出稳定 reason 的 `CommandRejected` event，并标记 command handled。
+- Spawn definition 本身不是 world state；hash / SaveState 只保存 spawn 之后的 entity 和 component stores，restore 不需要 spawn registry 仍存在。
+- `GameplayRuntimeModule.CreateDefaultSystemPipeline` 暂不自动注册 spawn system；项目组合根通过 `configureDefaultPipeline` 显式提供 spawn registry。
 
 Core components v0：
 
@@ -254,6 +271,7 @@ Gameplay command systems v0：
 - `GameplayAbilityCommandSystem` 处理 `GameplayRuntimeCommandIds.CastAbility`，复用 `GameplayAbilityRuntimeService`，输出 `AbilityCastSucceeded` / `AbilityCastFailed` event，并标记 command handled。
 - `GameplayEntityLifecycleCommandSystem` 处理 `GameplayRuntimeCommandIds.DespawnEntity`，移除 `GameplayWorld` v0 entity 并输出 `EntityDespawned` / `CommandRejected` event，并标记 command handled。
 - `GameplayComponentEntityCommandSystem` 处理 `CreateComponentEntity` / `DestroyComponentEntity`，读写 `GameplayComponentWorld` generation entity，并输出 `ComponentEntityCreated` / `ComponentEntityDestroyed` / `CommandRejected` event。
+- `GameplayComponentSpawnCommandSystem` 处理 `SpawnComponentEntity`，按 `GameplayComponentSpawnRegistry` 中的 definition 创建带初始 components 的 component entity，并输出 `ComponentEntityCreated / SpawnComponentEntity` 或 `CommandRejected` event。
 - `GameplayComponentEntityCommandSystem` 依赖 `GameplaySystemContext.ComponentWorld`。缺少 component world 时输出 `CommandRejected / MissingComponentWorld`，不抛出 NRE。
 - `DestroyComponentEntity` command 使用 `payload0=index`、`payload1=generation`，拒绝 stale / invalid id，避免误删复用后的新 entity。
 - `GameplayRuntimeEvent.ComponentEntityId` 是 component runtime 的 generation-safe event id；旧 `TargetEntityId` 仍服务 v0 `RuntimeEntity` / Ability 事件。事件构造会校验 component entity index / generation 必须同时为 default 或有效值，需要安全读取时使用 `TryGetComponentEntityId`。
@@ -369,6 +387,7 @@ GameplayDiagnosticSnapshot snapshot = builder.Build(
 - Gameplay ECS-style core components v0：Identity、Team、Lifecycle、Tag、Status 纯数据组件。
 - Gameplay command systems v0：CastAbility、DespawnEntity 和 unsupported command rejection 从 module switch 迁入 systems。
 - Gameplay component state systems v0：Lifecycle cleanup 在 Resolution phase 清理 `PendingDestroy` entity，并复用 ComponentWorld destroy cleanup / event queue / hash / SaveState 闭环。
+- Gameplay component spawn definitions v0：`SpawnComponentEntity` command 通过显式 definition 初始化 component entity，失败时回滚半初始化状态。
 - Ability Runtime Graph v0：图契约、确定性执行、phase timeline、diagnostics、hash。
 - 自身目标和单敌方目标选择。
 - 直接伤害效果。
