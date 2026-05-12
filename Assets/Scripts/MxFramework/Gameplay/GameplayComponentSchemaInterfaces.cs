@@ -22,5 +22,7 @@ namespace MxFramework.Gameplay
     public interface IGameplayComponentSaveStateAdapter<T> : IGameplayComponentSchemaDescriptor
         where T : struct, IGameplayComponent
     {
+        RuntimeCustomState WriteSaveState(GameplayEntityId entityId, in T component);
+        RuntimeSaveStateResult<T> ReadSaveState(GameplayEntityId entityId, RuntimeCustomState payload);
     }
 }

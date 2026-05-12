@@ -246,6 +246,16 @@ namespace MxFramework.Tests.Ability
             }
 
             public GameplayComponentSchema Schema { get; }
+
+            public RuntimeCustomState WriteSaveState(GameplayEntityId entityId, in TestComponent component)
+            {
+                return new RuntimeCustomState(Schema.StableId, Schema.Version, "{\"value\":" + component.Value + "}");
+            }
+
+            public RuntimeSaveStateResult<TestComponent> ReadSaveState(GameplayEntityId entityId, RuntimeCustomState payload)
+            {
+                return RuntimeSaveStateResult<TestComponent>.Succeeded(new TestComponent(0));
+            }
         }
 
         private sealed class MismatchedDiagnosticDescriptor : IGameplayComponentDiagnosticWriter<SecondComponent>

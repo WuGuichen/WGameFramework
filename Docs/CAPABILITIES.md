@@ -213,6 +213,7 @@
 | Ability Graph Diagnostics / Trace | ✅ v0.1 | `AbilityGraphDiagnosticSnapshot` / `AbilityGraphExecutionTrace` |
 | Ability Graph Runtime Hash | ✅ v0.1 | `AbilityGraphHashContributor` 接入 `IRuntimeHashContributor` |
 | Gameplay Runtime Hash | ✅ v0.1 | `GameplayHashContributor` / `GameplayComponentWorldHashContributor` 接入 `IRuntimeHashContributor` |
+| Gameplay Component SaveState | ✅ v0.1 | `GameplayComponentWorldSaveStateProvider` 通过 schema SaveState adapters 捕获 / 恢复 ComponentWorld |
 | Config Driven Ability | ✅ v0.3 | `_useAbilitySlice = true` + `_useConfigDrivenAbility = true`，通过命名化 `AbilityEffectConfig` 驱动 Strike / Ignite |
 | Gameplay Diagnostic Snapshot | ✅ v0.1 | `GameplayDiagnosticSnapshotBuilder.Build(...)` 汇总 Entity / Attribute / Buff / Modifier / Ability / Event 只读诊断状态 |
 | Gameplay World Diagnostics | ✅ v0.1 | `GameplayWorldDiagnostics` / `GameplayWorldDiagnosticsSummary` |

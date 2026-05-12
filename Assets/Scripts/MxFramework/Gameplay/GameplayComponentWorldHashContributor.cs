@@ -61,7 +61,14 @@ namespace MxFramework.Gameplay
             accumulator.AddInt("gameplay.componentWorld.component.entity.index", entityId.Index);
             accumulator.AddInt("gameplay.componentWorld.component.entity.generation", entityId.Generation);
 
-            adapter.TryWriteHash(_world.Registry, entityId, accumulator);
+            if (!adapter.TryWriteHash(_world.Registry, entityId, accumulator))
+            {
+                throw new InvalidOperationException(
+                    "Gameplay component hash writer failed after component presence check. Schema="
+                    + schema.StableId
+                    + ", Entity="
+                    + entityId);
+            }
         }
     }
 }

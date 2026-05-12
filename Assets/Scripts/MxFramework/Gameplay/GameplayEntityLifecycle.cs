@@ -101,6 +101,55 @@ namespace MxFramework.Gameplay
             }
         }
 
+        public void RestoreSnapshot(IReadOnlyList<GameplayEntityId> entities)
+        {
+            _slots.Clear();
+            _freeIndices.Clear();
+            CountAlive = 0;
+
+            if (entities == null || entities.Count == 0)
+                return;
+
+            int maxIndex = 0;
+            var seen = new HashSet<GameplayEntityId>();
+            for (int i = 0; i < entities.Count; i++)
+            {
+                GameplayEntityId entityId = entities[i];
+                if (!entityId.IsValid)
+                    throw new ArgumentException("Gameplay entity restore snapshot contains an invalid entity id.", nameof(entities));
+                if (!seen.Add(entityId))
+                    throw new ArgumentException("Gameplay entity restore snapshot contains a duplicate entity id.", nameof(entities));
+                if (entityId.Index > maxIndex)
+                    maxIndex = entityId.Index;
+            }
+
+            for (int i = 0; i < maxIndex; i++)
+            {
+                _slots.Add(new Slot(1, false));
+                _freeIndices.Enqueue(i + 1);
+            }
+
+            for (int i = 0; i < entities.Count; i++)
+            {
+                GameplayEntityId entityId = entities[i];
+                int slotIndex = entityId.Index - 1;
+                _slots[slotIndex] = new Slot(entityId.Generation, true);
+                RemoveFreeIndex(entityId.Index);
+                CountAlive++;
+            }
+        }
+
+        private void RemoveFreeIndex(int index)
+        {
+            int count = _freeIndices.Count;
+            for (int i = 0; i < count; i++)
+            {
+                int candidate = _freeIndices.Dequeue();
+                if (candidate != index)
+                    _freeIndices.Enqueue(candidate);
+            }
+        }
+
         private bool TryGetAliveSlotIndex(GameplayEntityId entityId, out int slotIndex)
         {
             slotIndex = entityId.Index - 1;

@@ -50,6 +50,8 @@ Core hash writers 只写稳定字段，不使用 `GetHashCode()`、反射字段�
 
 `RegisterDiagnostics` 和 `RegisterRuntimeHash` 可以按任意顺序注册到同一个 registry；同一 component 仍只保留一个 schema entry。
 
+`SupportsHash` 表示该 schema entry 支持 hash capability，不表示每个 descriptor 自身都是 hash writer。比如 core diagnostics descriptor 和 core hash descriptor 需要声明相同 schema metadata，才能挂到同一个 entry 下。
+
 ## 验收
 
 - ComponentWorld hash contributor 可通过 `RuntimeHashCombiner` 计算稳定 hash。

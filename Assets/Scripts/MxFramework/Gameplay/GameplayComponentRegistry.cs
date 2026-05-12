@@ -50,6 +50,14 @@ namespace MxFramework.Gameplay
             return _lifecycle.CreateSnapshot();
         }
 
+        public void RestoreEntities(IReadOnlyList<GameplayEntityId> entities)
+        {
+            for (int i = 0; i < _stores.Count; i++)
+                _stores[i].Clear();
+
+            _lifecycle.RestoreSnapshot(entities);
+        }
+
         public int CopyStoreDiagnostics(List<GameplayComponentStoreDiagnosticSnapshot> output)
         {
             if (output == null)

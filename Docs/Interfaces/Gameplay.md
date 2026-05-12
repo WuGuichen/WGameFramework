@@ -202,13 +202,14 @@ Component store v0：
 - Component schema descriptor 负责声明 schema version、诊断 writer、hash writer 和 SaveState adapter。一个 component 可以分阶段只支持 diagnostics，不支持 hash/save。
 - 同一 component 在 schema registry 中只能有一个 schema entry。Diagnostics、hash 和 SaveState capability 可以由同一个 descriptor 实现，也可以挂在同一个 entry 下，但不能用多个 schema entry 重复注册同一 `StableId` 或 `ComponentType`。
 - Capability adapter 的泛型 component type 必须匹配 `Schema.ComponentType`，且 schema 必须显式声明 `SupportsDiagnostics` / `SupportsHash` / `SupportsSaveState` 才能注册对应 adapter。
+- `SupportsHash` 等 support flag 描述的是 schema entry 支持的 capability 集合，不表示每一个注册到该 entry 的 descriptor 都必须自己实现对应 writer / adapter。
 - Registry snapshot 只暴露 schema metadata；真正执行 diagnostics / hash / SaveState 时，executor 必须通过 registry 解析对应 capability adapter，不能拿 metadata 后自行反射 component value。
 - Diagnostics executor 后续统一写入 `schemaId` / `schemaVersion`；单个 component diagnostics writer 只写 entity 和 component fields。
-- `GameplayCoreComponentSchemaDescriptors.RegisterDiagnostics` 注册 core diagnostics descriptors；`RegisterRuntimeHash` 注册 core hash writers，二者可以按任意顺序挂到同一个 schema entry。
+- `GameplayCoreComponentSchemaDescriptors.RegisterDiagnostics` 注册 core diagnostics descriptors；`RegisterRuntimeHash` 注册 core hash writers；`RegisterSaveState` 注册 core SaveState adapters，三者可以按任意顺序挂到同一个 schema entry。
 - `GameplayComponentWorldHashContributor` 通过 schema registry 接入 `RuntimeHashCombiner`，按 alive entity 顺序、schema `StableId` 顺序和 component 字段显式 writer 顺序写入；集合字段必须排序，浮点必须量化。
-- Component SaveState 后续应保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、unsupported version 或 invalid entity id 必须返回结构化错误。
+- `GameplayComponentWorldSaveStateProvider` 通过 `RuntimeModuleSaveState.CustomState.PayloadJson` 保存 `schemaId`、`schemaVersion`、`entityIndex`、`entityGeneration` 和 adapter 写出的结构化 payload；restore 遇到 missing schema、missing adapter、unsupported version 或 invalid entity id 返回结构化错误。
 - 未注册 schema 的 component store 只能出现在 store type/count 摘要中，不得通过反射展开 value 或直接进入 hash/save。
-- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`。
+- 详细 schema 契约见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_09_COMPONENT_SCHEMA_CONTRACT.md`；runtime hash 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_11_COMPONENT_RUNTIME_HASH.md`；component SaveState 实现见 `Docs/Tasks/GAMEPLAY_ECS_STYLE_12_COMPONENT_SAVE_STATE.md`。
 - 本批次不迁移 `RuntimeEntity` / `GameplayWorld` 的权威状态，不建立双写 source of truth。
 
 Core components v0：

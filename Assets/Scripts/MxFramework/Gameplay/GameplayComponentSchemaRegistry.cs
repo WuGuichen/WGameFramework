@@ -114,6 +114,35 @@ namespace MxFramework.Gameplay
             return snapshot;
         }
 
+        internal GameplayComponentSaveStateAdapter[] CreateSaveStateAdapters()
+        {
+            var adapters = new List<GameplayComponentSaveStateAdapter>();
+            for (int i = 0; i < _entries.Count; i++)
+            {
+                if (_entries[i].TryCreateSaveStateAdapter(out GameplayComponentSaveStateAdapter adapter))
+                    adapters.Add(adapter);
+            }
+
+            if (adapters.Count == 0)
+                return Array.Empty<GameplayComponentSaveStateAdapter>();
+
+            var snapshot = adapters.ToArray();
+            Array.Sort(snapshot, CompareSaveStateAdapters);
+            return snapshot;
+        }
+
+        internal bool TryGetSaveStateAdapterByStableId(
+            string stableId,
+            out GameplayComponentSaveStateAdapter adapter)
+        {
+            if (!string.IsNullOrEmpty(stableId)
+                && _entriesByStableId.TryGetValue(stableId, out SchemaEntry entry))
+                return entry.TryCreateSaveStateAdapter(out adapter);
+
+            adapter = default;
+            return false;
+        }
+
         public void Clear()
         {
             _entriesByStableId.Clear();
@@ -158,6 +187,11 @@ namespace MxFramework.Gameplay
             return string.CompareOrdinal(left.Schema.StableId, right.Schema.StableId);
         }
 
+        private static int CompareSaveStateAdapters(GameplayComponentSaveStateAdapter left, GameplayComponentSaveStateAdapter right)
+        {
+            return string.CompareOrdinal(left.Schema.StableId, right.Schema.StableId);
+        }
+
         private static void ValidateDescriptorAgainstSchema(
             IGameplayComponentSchemaDescriptor descriptor,
             GameplayComponentSchema schema)
@@ -194,6 +228,7 @@ namespace MxFramework.Gameplay
             private object _hashWriter;
             private IGameplayComponentHashRuntimeWriter _hashRuntimeWriter;
             private object _saveStateAdapter;
+            private IGameplayComponentSaveStateRuntimeAdapter _saveStateRuntimeAdapter;
             private bool _schemaOnlyRegistered;
 
             public SchemaEntry(GameplayComponentSchema schema)
@@ -236,6 +271,7 @@ namespace MxFramework.Gameplay
                         throw new InvalidOperationException("Gameplay component schema does not declare SaveState support.");
 
                     AttachCapability(ref _saveStateAdapter, descriptor, "save state adapter");
+                    _saveStateRuntimeAdapter = CreateSaveStateRuntimeAdapter(descriptor, componentType);
                     attached = true;
                 }
 
@@ -285,6 +321,18 @@ namespace MxFramework.Gameplay
                 return adapter != null;
             }
 
+            public bool TryCreateSaveStateAdapter(out GameplayComponentSaveStateAdapter adapter)
+            {
+                if (_saveStateRuntimeAdapter == null)
+                {
+                    adapter = default;
+                    return false;
+                }
+
+                adapter = new GameplayComponentSaveStateAdapter(Schema, _saveStateRuntimeAdapter);
+                return true;
+            }
+
             private static void AttachCapability(ref object target, object capability, string capabilityName)
             {
                 if (target != null && !ReferenceEquals(target, capability))
@@ -299,6 +347,14 @@ namespace MxFramework.Gameplay
             {
                 Type runtimeWriterType = typeof(GameplayComponentHashRuntimeWriter<>).MakeGenericType(componentType);
                 return (IGameplayComponentHashRuntimeWriter)Activator.CreateInstance(runtimeWriterType, descriptor);
+            }
+
+            private static IGameplayComponentSaveStateRuntimeAdapter CreateSaveStateRuntimeAdapter(
+                object descriptor,
+                Type componentType)
+            {
+                Type runtimeAdapterType = typeof(GameplayComponentSaveStateRuntimeAdapter<>).MakeGenericType(componentType);
+                return (IGameplayComponentSaveStateRuntimeAdapter)Activator.CreateInstance(runtimeAdapterType, descriptor);
             }
 
             private static bool ImplementsGameplayCapability(Type descriptorType)
@@ -397,6 +453,111 @@ namespace MxFramework.Gameplay
 
             _writer.WriteHash(entityId, component, accumulator);
             return true;
+        }
+    }
+
+    internal readonly struct GameplayComponentSaveStateAdapter
+    {
+        private readonly IGameplayComponentSaveStateRuntimeAdapter _adapter;
+
+        public GameplayComponentSaveStateAdapter(
+            GameplayComponentSchema schema,
+            IGameplayComponentSaveStateRuntimeAdapter adapter)
+        {
+            Schema = schema;
+            _adapter = adapter ?? throw new ArgumentNullException(nameof(adapter));
+        }
+
+        public GameplayComponentSchema Schema { get; }
+
+        public bool HasStore(GameplayComponentRegistry registry)
+        {
+            return _adapter.HasStore(registry);
+        }
+
+        public GameplayComponentEntrySaveState[] CaptureEntries(GameplayComponentRegistry registry)
+        {
+            return _adapter.CaptureEntries(registry);
+        }
+
+        public RuntimeSaveStateResult<RestoreComponentAction> CreateRestoreAction(
+            GameplayEntityId entityId,
+            RuntimeCustomState payload,
+            string path)
+        {
+            return _adapter.CreateRestoreAction(entityId, payload, path);
+        }
+    }
+
+    internal delegate void RestoreComponentAction(GameplayComponentRegistry registry);
+
+    internal interface IGameplayComponentSaveStateRuntimeAdapter
+    {
+        bool HasStore(GameplayComponentRegistry registry);
+        GameplayComponentEntrySaveState[] CaptureEntries(GameplayComponentRegistry registry);
+        RuntimeSaveStateResult<RestoreComponentAction> CreateRestoreAction(
+            GameplayEntityId entityId,
+            RuntimeCustomState payload,
+            string path);
+    }
+
+    internal sealed class GameplayComponentSaveStateRuntimeAdapter<T> : IGameplayComponentSaveStateRuntimeAdapter
+        where T : struct, IGameplayComponent
+    {
+        private readonly IGameplayComponentSaveStateAdapter<T> _adapter;
+
+        public GameplayComponentSaveStateRuntimeAdapter(object adapter)
+        {
+            _adapter = adapter as IGameplayComponentSaveStateAdapter<T>
+                ?? throw new ArgumentException("Gameplay component SaveState adapter has an incompatible component type.", nameof(adapter));
+        }
+
+        public bool HasStore(GameplayComponentRegistry registry)
+        {
+            if (registry == null)
+                throw new ArgumentNullException(nameof(registry));
+
+            return registry.TryGetStore(out GameplayComponentStore<T> _);
+        }
+
+        public GameplayComponentEntrySaveState[] CaptureEntries(GameplayComponentRegistry registry)
+        {
+            if (registry == null)
+                throw new ArgumentNullException(nameof(registry));
+
+            if (!registry.TryGetStore(out GameplayComponentStore<T> store))
+                return Array.Empty<GameplayComponentEntrySaveState>();
+
+            GameplayComponentSnapshot<T>[] snapshot = store.CreateSnapshot();
+            if (snapshot.Length == 0)
+                return Array.Empty<GameplayComponentEntrySaveState>();
+
+            var entries = new GameplayComponentEntrySaveState[snapshot.Length];
+            for (int i = 0; i < snapshot.Length; i++)
+            {
+                GameplayComponentSnapshot<T> component = snapshot[i];
+                RuntimeCustomState payload = _adapter.WriteSaveState(component.EntityId, component.Component);
+                entries[i] = new GameplayComponentEntrySaveState(
+                    component.EntityId.Index,
+                    component.EntityId.Generation,
+                    payload);
+            }
+
+            return entries;
+        }
+
+        public RuntimeSaveStateResult<RestoreComponentAction> CreateRestoreAction(
+            GameplayEntityId entityId,
+            RuntimeCustomState payload,
+            string path)
+        {
+            RuntimeSaveStateResult<T> read = _adapter.ReadSaveState(entityId, payload);
+            if (!read.Success)
+                return RuntimeSaveStateResult<RestoreComponentAction>.Failed(read.Error);
+
+            T component = read.Value;
+            RestoreComponentAction action = registry => registry.GetOrCreateStore<T>().Set(entityId, component);
+            return RuntimeSaveStateResult<RestoreComponentAction>.Succeeded(action);
         }
     }
 }
